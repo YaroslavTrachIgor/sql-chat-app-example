@@ -34,289 +34,258 @@ body {
   overflow: hidden;
 }
 
-.app {
-  display: flex;
-  height: 100vh;
-}
+.app { display: flex; height: 100vh; }
 
 /* ── Sidebar ─────────────────────────────────────── */
 
 .sidebar {
-  width: 320px;
-  min-width: 320px;
+  width: 340px; min-width: 340px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
 }
 
-.sidebar-header {
-  padding: 20px;
+/* Tab bar */
+.tab-bar {
+  display: flex;
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 0;
 }
 
-.sidebar-header h2 {
-  font-size: 20px;
-  font-weight: 600;
+.tab-btn {
+  flex: 1;
+  padding: 14px 0;
+  background: none; border: none;
+  color: var(--text-muted);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-bottom: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
 }
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-btn:hover:not(.active) { color: var(--text-secondary); }
+
+.tab-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* Sidebar header */
+.sidebar-header {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.sidebar-header h2 { font-size: 18px; font-weight: 600; }
 
 .current-user {
-  font-size: 13px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 6px;
 }
 
 .current-user .dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--success);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
 }
 
-.chat-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
+/* Search bar */
+.search-bar {
+  padding: 0 16px 12px;
 }
 
+.search-bar input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 9px 16px 9px 36px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c6c80' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 12px center;
+}
+
+.search-bar input:focus { border-color: var(--accent); }
+.search-bar input::placeholder { color: var(--text-muted); }
+
+/* Content lists */
+.sidebar-content { flex: 1; overflow-y: auto; padding: 4px 8px; }
+
+.chat-list, .contact-list { display: none; }
+.chat-list.active, .contact-list.active { display: block; }
+
+/* Chat items */
 .chat-item {
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: center; gap: 12px;
 }
 
-.chat-item:hover { background: rgba(67, 97, 238, 0.08); }
-.chat-item.active { background: rgba(67, 97, 238, 0.15); }
+.chat-item:hover { background: rgba(67,97,238,0.08); }
+.chat-item.active { background: rgba(67,97,238,0.15); }
 
-.chat-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
+.chat-avatar, .contact-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: 600;
-  color: var(--accent);
-  flex-shrink: 0;
+  font-size: 16px; font-weight: 600; color: #fff;
+  flex-shrink: 0; position: relative;
 }
 
-.chat-item-info { flex: 1; min-width: 0; }
+.chat-avatar { background: var(--bg-tertiary); color: var(--accent); }
 
-.chat-item-name {
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.online-dot {
+  position: absolute; bottom: 0; right: 0;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--bg-secondary);
+}
+
+.chat-item-info, .contact-info { flex: 1; min-width: 0; }
+
+.chat-item-name, .contact-name {
+  font-size: 15px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .chat-item-preview {
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   margin-top: 2px;
 }
 
 .chat-item-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
 }
 
-.chat-item-time {
-  font-size: 11px;
-  color: var(--text-muted);
+.chat-item-time { font-size: 11px; color: var(--text-muted); }
+
+/* Contact items */
+.contact-item {
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: center; gap: 12px;
 }
 
-.unread-badge {
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px; font-weight: 600;
-  min-width: 20px; height: 20px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 6px;
+.contact-item:hover { background: rgba(67,97,238,0.08); }
+
+.contact-status {
+  font-size: 13px; margin-top: 2px;
+}
+
+.contact-status.online { color: var(--success); }
+.contact-status.offline { color: var(--text-muted); }
+
+.section-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  color: var(--text-muted); padding: 12px 14px 6px; letter-spacing: 0.5px;
 }
 
 /* ── Chat panel ──────────────────────────────────── */
 
 .chat-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-primary);
+  flex: 1; display: flex; flex-direction: column; background: var(--bg-primary);
 }
 
 .chat-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 14px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
 }
 
 .chat-header-name { font-size: 17px; font-weight: 600; }
 .chat-header-sub  { font-size: 13px; color: var(--text-secondary); }
 
 .messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 4px;
 }
 
-.msg-group { margin-bottom: 12px; }
-
 .msg-sender {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 4px;
-  margin-left: 4px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  margin-bottom: 4px; margin-left: 4px;
 }
 
 .msg-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-bottom: 2px;
+  display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px;
 }
 
 .msg-row.mine { justify-content: flex-end; }
 
 .msg-bubble {
-  max-width: 65%;
-  padding: 10px 14px;
-  border-radius: 18px;
-  font-size: 15px;
-  line-height: 1.4;
-  word-wrap: break-word;
-  position: relative;
+  max-width: 65%; padding: 10px 14px; border-radius: 18px;
+  font-size: 15px; line-height: 1.4; word-wrap: break-word; position: relative;
 }
 
 .msg-row.mine .msg-bubble {
-  background: var(--bubble-mine);
-  border-bottom-right-radius: 4px;
+  background: var(--bubble-mine); border-bottom-right-radius: 4px;
 }
 
 .msg-row.other .msg-bubble {
-  background: var(--bubble-other);
-  border-bottom-left-radius: 4px;
+  background: var(--bubble-other); border-bottom-left-radius: 4px;
 }
 
 .msg-bubble .time {
-  font-size: 10px;
-  color: rgba(255,255,255,0.45);
-  margin-top: 4px;
-  display: block;
-  text-align: right;
+  font-size: 10px; color: rgba(255,255,255,0.45);
+  margin-top: 4px; display: block; text-align: right;
 }
 
-.msg-row.other .msg-bubble .time {
-  color: var(--text-muted);
-}
+.msg-row.other .msg-bubble .time { color: var(--text-muted); }
 
 .msg-system {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-  padding: 8px 0;
+  text-align: center; font-size: 13px; color: var(--text-muted); padding: 8px 0;
 }
 
 .msg-media {
-  max-width: 280px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg-tertiary);
-  padding: 10px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  max-width: 280px; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--bg-tertiary); padding: 10px;
+  font-size: 13px; color: var(--text-secondary);
 }
 
-.msg-reactions {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
+.msg-reactions { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
 
 .reaction-chip {
-  background: rgba(67,97,238,0.15);
-  border: 1px solid rgba(67,97,238,0.25);
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s;
+  background: rgba(67,97,238,0.15); border: 1px solid rgba(67,97,238,0.25);
+  border-radius: 12px; padding: 2px 8px; font-size: 13px;
+  cursor: pointer; transition: background 0.15s;
 }
 
 .reaction-chip:hover { background: rgba(67,97,238,0.3); }
 
-/* ── Compose bar ─────────────────────────────────── */
+/* ── Compose ─────────────────────────────────────── */
 
 .compose {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: center;
 }
 
 .compose input {
-  flex: 1;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 12px 18px;
-  color: var(--text-primary);
-  font-size: 15px;
-  outline: none;
-  transition: border-color 0.15s;
+  flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 24px; padding: 11px 18px; color: var(--text-primary);
+  font-size: 15px; outline: none; transition: border-color 0.15s;
 }
 
 .compose input:focus { border-color: var(--accent); }
 .compose input::placeholder { color: var(--text-muted); }
 
 .btn-send {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: none;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
-  flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 50%; background: var(--accent);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; flex-shrink: 0;
 }
 
 .btn-send:hover { background: var(--accent-hover); }
-
-.btn-send svg {
-  width: 20px; height: 20px;
-  fill: #fff;
-}
+.btn-send svg { width: 18px; height: 18px; fill: #fff; }
 
 /* ── Empty state ─────────────────────────────────── */
 
 .empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  gap: 12px;
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-muted); gap: 12px;
 }
 
 .empty-state svg { width: 64px; height: 64px; opacity: 0.3; }
@@ -325,82 +294,50 @@ body {
 /* ── SQL Console ─────────────────────────────────── */
 
 .sql-toggle {
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
+  padding: 10px 16px; border-top: 1px solid var(--border); background: var(--bg-secondary);
 }
 
 .sql-toggle button {
   background: none; border: 1px solid var(--border);
-  color: var(--text-secondary); padding: 6px 14px;
-  border-radius: 6px; cursor: pointer; font-size: 13px;
-  transition: all 0.15s;
+  color: var(--text-secondary); padding: 5px 12px;
+  border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.15s;
 }
 
-.sql-toggle button:hover {
-  border-color: var(--accent); color: var(--accent);
-}
+.sql-toggle button:hover { border-color: var(--accent); color: var(--accent); }
 
 .sql-console {
-  display: none;
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
-  padding: 16px 20px;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 280px;
+  display: none; border-top: 1px solid var(--border); background: var(--bg-secondary);
+  padding: 14px 16px; flex-direction: column; gap: 8px; max-height: 260px;
 }
 
 .sql-console.open { display: flex; }
 
 .sql-console textarea {
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px;
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px;
   color: var(--text-primary);
-  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-  font-size: 13px;
-  resize: vertical;
-  min-height: 60px;
-  outline: none;
+  font-family: "SF Mono","Fira Code","Consolas",monospace;
+  font-size: 12px; resize: vertical; min-height: 50px; outline: none;
 }
 
 .sql-console textarea:focus { border-color: var(--accent); }
 
-.sql-console .actions {
-  display: flex; gap: 8px; align-items: center;
-}
+.sql-console .actions { display: flex; gap: 8px; align-items: center; }
 
 .sql-console .btn-run {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 6px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  background: var(--accent); color: #fff; border: none;
+  padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
 }
 
 .sql-result {
-  overflow: auto;
-  max-height: 140px;
-  font-family: "SF Mono", "Fira Code", monospace;
-  font-size: 12px;
-  color: var(--text-secondary);
+  overflow: auto; max-height: 120px;
+  font-family: "SF Mono","Fira Code",monospace; font-size: 11px; color: var(--text-secondary);
 }
 
-.sql-result table {
-  border-collapse: collapse;
-  width: 100%;
-}
+.sql-result table { border-collapse: collapse; width: 100%; }
 
 .sql-result th, .sql-result td {
-  border: 1px solid var(--border);
-  padding: 4px 8px;
-  text-align: left;
-  white-space: nowrap;
+  border: 1px solid var(--border); padding: 3px 6px; text-align: left; white-space: nowrap;
 }
 
 .sql-result th { color: var(--accent); font-weight: 500; }
@@ -416,19 +353,37 @@ body {
 <body>
 
 <div class="app">
-  <!-- Sidebar -->
   <aside class="sidebar">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabContacts" onclick="switchTab('contacts')">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Contacts
+      </button>
+      <button class="tab-btn" id="tabChats" onclick="switchTab('chats')">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
+        Chats
+      </button>
+    </div>
+
     <div class="sidebar-header">
-      <h2>Chats</h2>
+      <h2 id="sidebarTitle">Contacts</h2>
       <div class="current-user"><span class="dot"></span> <span id="currentUserName">Alice</span></div>
     </div>
-    <div class="chat-list" id="chatList"></div>
+
+    <div class="search-bar">
+      <input id="searchInput" placeholder="Search" oninput="onSearch()" />
+    </div>
+
+    <div class="sidebar-content">
+      <div class="contact-list active" id="contactList"></div>
+      <div class="chat-list" id="chatList"></div>
+    </div>
+
     <div class="sql-toggle">
       <button onclick="toggleConsole()">SQL Console</button>
     </div>
   </aside>
 
-  <!-- Chat Panel -->
   <main class="chat-panel" id="chatPanel">
     <div class="empty-state" id="emptyState">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
@@ -437,12 +392,11 @@ body {
   </main>
 </div>
 
-<!-- SQL Console (global overlay at bottom) -->
 <div class="sql-console" id="sqlConsole">
   <textarea id="sqlInput" placeholder="SELECT * FROM app_user;" rows="3"></textarea>
   <div class="actions">
     <button class="btn-run" onclick="runSQL()">Run</button>
-    <span style="font-size:12px;color:var(--text-muted)">Ctrl+Enter</span>
+    <span style="font-size:11px;color:var(--text-muted)">Ctrl+Enter</span>
   </div>
   <div class="sql-result" id="sqlResult"></div>
 </div>
@@ -453,6 +407,7 @@ body {
 let db = null;
 let currentUserId = 1;
 let activeChatId  = null;
+let activeTab     = 'contacts';
 
 // ── Boot ─────────────────────────────────────────────────────
 async function boot() {
@@ -462,121 +417,172 @@ async function boot() {
   db = new SQL.Database();
   initSchema();
   seedData();
-  renderChatList();
+  renderContactList();
 }
 
-// ── Schema (SQLite-compatible) ───────────────────────────────
+// ── Schema ───────────────────────────────────────────────────
 function initSchema() {
   db.run(`
     CREATE TABLE IF NOT EXISTS app_user (
       user_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-      username     TEXT    NOT NULL UNIQUE,
+      username     TEXT NOT NULL UNIQUE,
       display_name TEXT,
-      email        TEXT    UNIQUE,
-      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+      email        TEXT UNIQUE,
+      phone        TEXT UNIQUE,
+      bio          TEXT,
+      avatar_url   TEXT,
+      avatar_color TEXT NOT NULL DEFAULT '#4361ee',
+      is_online    INTEGER NOT NULL DEFAULT 0,
+      last_seen_at TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
-
+    CREATE TABLE IF NOT EXISTS contact (
+      owner_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+      contact_id  INTEGER NOT NULL REFERENCES app_user(user_id),
+      nickname    TEXT,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      added_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (owner_id, contact_id),
+      CHECK (owner_id <> contact_id)
+    );
+    CREATE TABLE IF NOT EXISTS blocked_user (
+      user_id         INTEGER NOT NULL REFERENCES app_user(user_id),
+      blocked_user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+      blocked_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, blocked_user_id)
+    );
     CREATE TABLE IF NOT EXISTS chat (
       chat_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-      ctype      TEXT    NOT NULL CHECK (ctype IN ('direct','group','channel')),
+      ctype      TEXT NOT NULL CHECK (ctype IN ('direct','group','channel')),
       title      TEXT,
       created_by INTEGER REFERENCES app_user(user_id),
-      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-
     CREATE TABLE IF NOT EXISTS chat_participant (
-      chat_id   INTEGER NOT NULL REFERENCES chat(chat_id),
-      user_id   INTEGER NOT NULL REFERENCES app_user(user_id),
-      role      TEXT,
-      joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      chat_id     INTEGER NOT NULL REFERENCES chat(chat_id),
+      user_id     INTEGER NOT NULL REFERENCES app_user(user_id),
+      role        TEXT,
+      is_muted    INTEGER NOT NULL DEFAULT 0,
+      muted_until TEXT,
+      joined_at   TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (chat_id, user_id)
     );
-
     CREATE TABLE IF NOT EXISTS message (
-      message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id    INTEGER NOT NULL REFERENCES chat(chat_id),
-      sender_id  INTEGER NOT NULL REFERENCES app_user(user_id),
-      mtype      TEXT    NOT NULL CHECK (mtype IN ('text','media','system')),
-      sent_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-      edited_at  TEXT
+      message_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id     INTEGER NOT NULL REFERENCES chat(chat_id),
+      sender_id   INTEGER NOT NULL REFERENCES app_user(user_id),
+      mtype       TEXT NOT NULL CHECK (mtype IN ('text','media','system')),
+      reply_to_id INTEGER REFERENCES message(message_id),
+      is_pinned   INTEGER NOT NULL DEFAULT 0,
+      is_deleted  INTEGER NOT NULL DEFAULT 0,
+      sent_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      edited_at   TEXT
     );
-
     CREATE TABLE IF NOT EXISTS text_message (
       message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
-      body       TEXT    NOT NULL
+      body       TEXT NOT NULL
     );
-
     CREATE TABLE IF NOT EXISTS system_message (
       message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
-      event_type TEXT    NOT NULL,
+      event_type TEXT NOT NULL,
       payload    TEXT
     );
-
+    CREATE TABLE IF NOT EXISTS message_status (
+      message_id INTEGER NOT NULL REFERENCES message(message_id),
+      user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+      status     TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent','delivered','read','failed')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (message_id, user_id)
+    );
     CREATE TABLE IF NOT EXISTS media (
       media_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-      kind        TEXT    NOT NULL CHECK (kind IN ('image','video','audio','file')),
+      kind        TEXT NOT NULL CHECK (kind IN ('image','video','audio','file')),
       mime_type   TEXT,
       bytes       INTEGER,
       url         TEXT,
-      uploaded_at TEXT    NOT NULL DEFAULT (datetime('now'))
+      uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-
     CREATE TABLE IF NOT EXISTS media_message (
       message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
       media_id   INTEGER NOT NULL REFERENCES media(media_id)
     );
-
     CREATE TABLE IF NOT EXISTS image_media (
       media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
-      width    INTEGER,
-      height   INTEGER
+      width INTEGER, height INTEGER
     );
-
     CREATE TABLE IF NOT EXISTS video_media (
-      media_id    INTEGER PRIMARY KEY REFERENCES media(media_id),
-      width       INTEGER,
-      height      INTEGER,
-      duration_ms INTEGER
+      media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+      width INTEGER, height INTEGER, duration_ms INTEGER
     );
-
     CREATE TABLE IF NOT EXISTS audio_media (
-      media_id    INTEGER PRIMARY KEY REFERENCES media(media_id),
+      media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
       duration_ms INTEGER
     );
-
     CREATE TABLE IF NOT EXISTS file_media (
-      media_id  INTEGER PRIMARY KEY REFERENCES media(media_id),
+      media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
       file_name TEXT
     );
-
     CREATE TABLE IF NOT EXISTS reaction (
       message_id INTEGER NOT NULL REFERENCES message(message_id),
       user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
-      emoji      TEXT    NOT NULL,
-      reacted_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      emoji      TEXT NOT NULL,
+      reacted_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (message_id, user_id, emoji)
     );
-
     CREATE TABLE IF NOT EXISTS read_receipt (
       message_id INTEGER NOT NULL REFERENCES message(message_id),
       user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
-      read_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      read_at    TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (message_id, user_id)
     );
-
+    CREATE TABLE IF NOT EXISTS typing_indicator (
+      chat_id INTEGER NOT NULL REFERENCES chat(chat_id),
+      user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (chat_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS call (
+      call_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id    INTEGER NOT NULL REFERENCES chat(chat_id),
+      started_by INTEGER NOT NULL REFERENCES app_user(user_id),
+      ctype      TEXT NOT NULL CHECK (ctype IN ('voice','video')),
+      status     TEXT NOT NULL DEFAULT 'ringing' CHECK (status IN ('ringing','active','ended','missed','declined')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at   TEXT
+    );
+    CREATE TABLE IF NOT EXISTS call_participant (
+      call_id INTEGER NOT NULL REFERENCES call(call_id),
+      user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+      joined_at TEXT, left_at TEXT,
+      PRIMARY KEY (call_id, user_id)
+    );
     CREATE INDEX IF NOT EXISTS idx_message_chat_sent ON message(chat_id, sent_at);
-    CREATE INDEX IF NOT EXISTS idx_message_sender    ON message(sender_id);
+    CREATE INDEX IF NOT EXISTS idx_contact_owner ON contact(owner_id);
   `);
 }
 
 // ── Seed ─────────────────────────────────────────────────────
 function seedData() {
   db.run(`
-    INSERT INTO app_user (username, display_name, email) VALUES
-      ('alice','Alice Johnson','alice@example.com'),
-      ('bob','Bob Smith','bob@example.com'),
-      ('charlie','Charlie Lee','charlie@example.com'),
-      ('diana','Diana Ruiz','diana@example.com');
+    INSERT INTO app_user (username, display_name, email, phone, bio, avatar_color, is_online, last_seen_at) VALUES
+      ('alice','Alice Johnson','alice@example.com','+1-555-0101','Product designer','#4361ee',1,datetime('now')),
+      ('bob','Bob Smith','bob@example.com','+1-555-0102','Frontend engineer','#e74c3c',0,datetime('now','-15 minutes')),
+      ('charlie','Charlie Lee','charlie@example.com','+1-555-0103','Backend developer','#2ecc71',0,datetime('now','-2 hours')),
+      ('diana','Diana Ruiz','diana@example.com','+1-555-0104','QA lead','#9b59b6',1,datetime('now')),
+      ('elena','Elena Petrova','elena@example.com','+1-555-0105','DevOps engineer','#e67e22',0,datetime('now','-1 day')),
+      ('frank','Frank Torres','frank@example.com','+1-555-0106','Mobile developer','#1abc9c',0,datetime('now','-3 days')),
+      ('grace','Grace Kim','grace@example.com','+1-555-0107','Data scientist','#f39c12',1,datetime('now')),
+      ('henry','Henry Wang','henry@example.com','+1-555-0108','Security engineer','#3498db',0,datetime('now','-5 hours')),
+      ('isabella','Isabella Costa','isabella@example.com','+1-555-0109','UX researcher','#e91e63',0,datetime('now','-30 minutes')),
+      ('james','James Murphy','james@example.com','+1-555-0110','Tech lead','#ff5722',0,datetime('now','-12 hours')),
+      ('katya','Katya Novak','katya@example.com','+1-555-0111','Project manager','#8bc34a',1,datetime('now')),
+      ('lucas','Lucas Andersen','lucas@example.com','+1-555-0112','Fullstack dev','#00bcd4',0,datetime('now','-4 days'));
+
+    INSERT INTO contact (owner_id, contact_id, nickname, is_favorite) VALUES
+      (1,2,NULL,1),(1,3,NULL,0),(1,4,NULL,1),
+      (1,5,'Lena',0),(1,6,NULL,0),(1,7,NULL,1),
+      (1,8,NULL,0),(1,9,'Isa',0),(1,10,NULL,0),
+      (1,11,NULL,0),(1,12,NULL,0);
 
     INSERT INTO chat (ctype, title, created_by) VALUES
       ('direct', NULL, 1),
@@ -584,9 +590,14 @@ function seedData() {
       ('direct', NULL, 1);
 
     INSERT INTO chat_participant VALUES
-      (1,1,'member'),(1,2,'member'),
-      (2,1,'admin'),(2,2,'member'),(2,3,'member'),(2,4,'member'),
-      (3,1,'member'),(3,3,'member');
+      (1,1,'member',0,NULL,datetime('now')),
+      (1,2,'member',0,NULL,datetime('now')),
+      (2,1,'admin',0,NULL,datetime('now')),
+      (2,2,'member',0,NULL,datetime('now')),
+      (2,3,'member',0,NULL,datetime('now')),
+      (2,4,'member',0,NULL,datetime('now')),
+      (3,1,'member',0,NULL,datetime('now')),
+      (3,3,'member',0,NULL,datetime('now'));
 
     INSERT INTO message (chat_id, sender_id, mtype, sent_at) VALUES
       (1,1,'text',datetime('now','-2 hours')),
@@ -609,7 +620,7 @@ function seedData() {
     INSERT INTO media (kind, mime_type, bytes, url) VALUES
       ('image','image/png',204800,'https://cdn.example.com/mockup-v3.png');
     INSERT INTO media_message VALUES (6,1);
-    INSERT INTO image_media VALUES (1, 1920, 1080);
+    INSERT INTO image_media VALUES (1,1920,1080);
 
     INSERT INTO system_message VALUES
       (7,'member_joined','{"user_id":4,"display_name":"Diana Ruiz"}');
@@ -632,8 +643,27 @@ function query(sql, params = []) {
   return rows;
 }
 
-function getChatList() {
-  return query(`
+function getContacts(searchTerm) {
+  let sql = `
+    SELECT au.user_id, au.display_name, au.username, au.phone,
+           au.avatar_color, au.is_online, au.last_seen_at,
+           c.nickname, c.is_favorite
+    FROM contact c
+    JOIN app_user au ON au.user_id = c.contact_id
+    WHERE c.owner_id = ?`;
+  const params = [currentUserId];
+  if (searchTerm) {
+    sql += ` AND (au.display_name LIKE '%' || ? || '%'
+                  OR au.username LIKE '%' || ? || '%'
+                  OR c.nickname LIKE '%' || ? || '%')`;
+    params.push(searchTerm, searchTerm, searchTerm);
+  }
+  sql += ` ORDER BY c.is_favorite DESC, au.display_name ASC`;
+  return query(sql, params);
+}
+
+function getChatList(searchTerm) {
+  let sql = `
     SELECT c.chat_id, c.ctype, c.title,
            CASE WHEN c.ctype = 'direct' THEN
              (SELECT au.display_name FROM chat_participant cp2
@@ -650,17 +680,21 @@ function getChatList() {
            ) AS last_activity
     FROM chat_participant cp
     JOIN chat c ON c.chat_id = cp.chat_id
-    WHERE cp.user_id = ?
-    ORDER BY last_activity DESC NULLS LAST
-  `, [currentUserId, currentUserId]);
+    WHERE cp.user_id = ?`;
+  const params = [currentUserId, currentUserId];
+  if (searchTerm) {
+    sql += ` AND chat_name LIKE '%' || ? || '%'`;
+    params.push(searchTerm);
+  }
+  sql += ` ORDER BY last_activity DESC NULLS LAST`;
+  return query(sql, params);
 }
 
 function getMessages(chatId) {
   return query(`
     SELECT m.message_id, m.mtype, m.sent_at, m.edited_at, m.sender_id,
            au.display_name AS sender_name,
-           tm.body,
-           sm.event_type, sm.payload,
+           tm.body, sm.event_type, sm.payload,
            med.url AS media_url, med.kind AS media_kind
     FROM message m
     JOIN app_user au ON au.user_id = m.sender_id
@@ -668,16 +702,13 @@ function getMessages(chatId) {
     LEFT JOIN system_message sm ON sm.message_id = m.message_id
     LEFT JOIN media_message mm  ON mm.message_id = m.message_id
     LEFT JOIN media med         ON med.media_id  = mm.media_id
-    WHERE m.chat_id = ?
+    WHERE m.chat_id = ? AND m.is_deleted = 0
     ORDER BY m.sent_at ASC
   `, [chatId]);
 }
 
 function getReactions(messageId) {
-  return query(`
-    SELECT r.emoji, COUNT(*) AS cnt
-    FROM reaction r WHERE r.message_id = ? GROUP BY r.emoji
-  `, [messageId]);
+  return query(`SELECT r.emoji, COUNT(*) AS cnt FROM reaction r WHERE r.message_id = ? GROUP BY r.emoji`, [messageId]);
 }
 
 function getChatName(chatId) {
@@ -696,9 +727,96 @@ function getParticipantCount(chatId) {
   return query(`SELECT COUNT(*) AS cnt FROM chat_participant WHERE chat_id=?`, [chatId])[0].cnt;
 }
 
-// ── Render ───────────────────────────────────────────────────
-function renderChatList() {
-  const chats = getChatList();
+function findOrCreateDirectChat(contactUserId) {
+  const existing = query(`
+    SELECT c.chat_id FROM chat c
+    JOIN chat_participant cp1 ON cp1.chat_id=c.chat_id AND cp1.user_id=?
+    JOIN chat_participant cp2 ON cp2.chat_id=c.chat_id AND cp2.user_id=?
+    WHERE c.ctype='direct' LIMIT 1
+  `, [currentUserId, contactUserId]);
+  if (existing.length) return existing[0].chat_id;
+
+  db.run(`INSERT INTO chat (ctype, created_by) VALUES ('direct', ?)`, [currentUserId]);
+  const chatId = query(`SELECT last_insert_rowid() AS id`)[0].id;
+  db.run(`INSERT INTO chat_participant (chat_id, user_id, role) VALUES (?,?,'member'),(?,?,'member')`,
+    [chatId, currentUserId, chatId, contactUserId]);
+  return chatId;
+}
+
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabContacts').classList.toggle('active', tab === 'contacts');
+  document.getElementById('tabChats').classList.toggle('active', tab === 'chats');
+  document.getElementById('contactList').classList.toggle('active', tab === 'contacts');
+  document.getElementById('chatList').classList.toggle('active', tab === 'chats');
+  document.getElementById('sidebarTitle').textContent = tab === 'contacts' ? 'Contacts' : 'Chats';
+  document.getElementById('searchInput').placeholder = tab === 'contacts' ? 'Search contacts' : 'Search chats';
+  document.getElementById('searchInput').value = '';
+
+  if (tab === 'contacts') renderContactList();
+  else renderChatList();
+}
+
+function onSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (activeTab === 'contacts') renderContactList(q);
+  else renderChatList(q);
+}
+
+// ── Render: Contacts ─────────────────────────────────────────
+function renderContactList(searchTerm) {
+  const contacts = getContacts(searchTerm);
+  const el = document.getElementById('contactList');
+
+  if (!contacts.length) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No contacts found</div>';
+    return;
+  }
+
+  const favorites = contacts.filter(c => c.is_favorite);
+  const others = contacts.filter(c => !c.is_favorite);
+  let html = '';
+
+  if (favorites.length && !searchTerm) {
+    html += '<div class="section-label">Favorites</div>';
+    html += favorites.map(contactHTML).join('');
+  }
+
+  html += `<div class="section-label">${favorites.length && !searchTerm ? 'All Contacts' : 'Contacts'}</div>`;
+  html += (searchTerm ? contacts : others).map(contactHTML).join('');
+
+  el.innerHTML = html;
+}
+
+function contactHTML(c) {
+  const name = c.nickname || c.display_name;
+  const initials = (c.display_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
+  const statusText = c.is_online ? 'online' : formatLastSeen(c.last_seen_at);
+  const statusClass = c.is_online ? 'online' : 'offline';
+  const onlineDot = c.is_online ? '<span class="online-dot"></span>' : '';
+
+  return `
+    <div class="contact-item" onclick="openContactChat(${c.user_id})">
+      <div class="contact-avatar" style="background:${c.avatar_color}">
+        ${initials}${onlineDot}
+      </div>
+      <div class="contact-info">
+        <div class="contact-name">${esc(name)}</div>
+        <div class="contact-status ${statusClass}">${esc(statusText)}</div>
+      </div>
+    </div>`;
+}
+
+function openContactChat(contactUserId) {
+  const chatId = findOrCreateDirectChat(contactUserId);
+  switchTab('chats');
+  openChat(chatId);
+}
+
+// ── Render: Chat list ────────────────────────────────────────
+function renderChatList(searchTerm) {
+  const chats = getChatList(searchTerm);
   const el = document.getElementById('chatList');
   el.innerHTML = chats.map(c => {
     const initials = (c.chat_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
@@ -721,14 +839,15 @@ function renderChatList() {
 
 function openChat(chatId) {
   activeChatId = chatId;
-  renderChatList();
+  if (activeTab === 'chats') renderChatList();
   renderChatPanel();
 }
 
+// ── Render: Chat panel ───────────────────────────────────────
 function renderChatPanel() {
   const panel = document.getElementById('chatPanel');
   if (!activeChatId) {
-    panel.innerHTML = `<div class="empty-state" id="emptyState">
+    panel.innerHTML = `<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
       <p>Select a chat to start messaging</p>
     </div>`;
@@ -834,8 +953,7 @@ function runSQL() {
     const results = db.exec(sql);
     if (!results.length) {
       el.innerHTML = '<em>Query executed (no rows returned).</em>';
-      renderChatList();
-      renderChatPanel();
+      renderContactList(); renderChatList(); renderChatPanel();
       return;
     }
     const r = results[0];
@@ -843,8 +961,7 @@ function runSQL() {
       <tr>${r.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
       ${r.values.map(row => `<tr>${row.map(v => `<td>${esc(String(v ?? 'NULL'))}</td>`).join('')}</tr>`).join('')}
     </table>`;
-    renderChatList();
-    renderChatPanel();
+    renderContactList(); renderChatList(); renderChatPanel();
   } catch (e) {
     el.innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
   }
@@ -866,11 +983,20 @@ function formatTime(ts) {
   const d = new Date(ts + 'Z');
   if (isNaN(d)) return ts;
   const now = new Date();
-  const diff = now - d;
-  if (diff < 86400000 && d.getDate() === now.getDate()) {
+  if (now - d < 86400000 && d.getDate() === now.getDate()) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatLastSeen(ts) {
+  if (!ts) return '';
+  const d = new Date(ts + 'Z');
+  if (isNaN(d)) return '';
+  const diff = Date.now() - d.getTime();
+  if (diff < 3600000) return `last seen ${Math.floor(diff/60000)}m ago`;
+  if (diff < 86400000) return `last seen ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `last seen ${d.toLocaleDateString([], { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
 }
 
 // ── Init ─────────────────────────────────────────────────────
