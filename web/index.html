@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SQL Chat</title>
+<style>
+:root {
+  --bg-primary:   #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary:  #0f3460;
+  --bg-input:     #1a1a3e;
+  --accent:       #4361ee;
+  --accent-hover: #3a56d4;
+  --text-primary: #e0e0e0;
+  --text-secondary:#a0a0b8;
+  --text-muted:   #6c6c80;
+  --bubble-mine:  #4361ee;
+  --bubble-other: #252545;
+  --border:       #2a2a4a;
+  --danger:       #e74c3c;
+  --success:      #2ecc71;
+  --radius:       12px;
+  --radius-sm:    8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────── */
+
+.sidebar {
+  width: 320px;
+  min-width: 320px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.current-user {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.current-user .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chat-item {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-item:hover { background: rgba(67, 97, 238, 0.08); }
+.chat-item.active { background: rgba(67, 97, 238, 0.15); }
+
+.chat-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.chat-item-info { flex: 1; min-width: 0; }
+
+.chat-item-name {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.chat-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chat-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.unread-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px; font-weight: 600;
+  min-width: 20px; height: 20px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px;
+}
+
+/* ── Chat panel ──────────────────────────────────── */
+
+.chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.chat-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-header-name { font-size: 17px; font-weight: 600; }
+.chat-header-sub  { font-size: 13px; color: var(--text-secondary); }
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.msg-group { margin-bottom: 12px; }
+
+.msg-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+  margin-left: 4px;
+}
+
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.msg-row.mine { justify-content: flex-end; }
+
+.msg-bubble {
+  max-width: 65%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  position: relative;
+}
+
+.msg-row.mine .msg-bubble {
+  background: var(--bubble-mine);
+  border-bottom-right-radius: 4px;
+}
+
+.msg-row.other .msg-bubble {
+  background: var(--bubble-other);
+  border-bottom-left-radius: 4px;
+}
+
+.msg-bubble .time {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 4px;
+  display: block;
+  text-align: right;
+}
+
+.msg-row.other .msg-bubble .time {
+  color: var(--text-muted);
+}
+
+.msg-system {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.msg-media {
+  max-width: 280px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  padding: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.msg-reactions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.reaction-chip {
+  background: rgba(67,97,238,0.15);
+  border: 1px solid rgba(67,97,238,0.25);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reaction-chip:hover { background: rgba(67,97,238,0.3); }
+
+/* ── Compose bar ─────────────────────────────────── */
+
+.compose {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.compose input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 12px 18px;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.compose input:focus { border-color: var(--accent); }
+.compose input::placeholder { color: var(--text-muted); }
+
+.btn-send {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-send:hover { background: var(--accent-hover); }
+
+.btn-send svg {
+  width: 20px; height: 20px;
+  fill: #fff;
+}
+
+/* ── Empty state ─────────────────────────────────── */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.empty-state svg { width: 64px; height: 64px; opacity: 0.3; }
+.empty-state p { font-size: 16px; }
+
+/* ── SQL Console ─────────────────────────────────── */
+
+.sql-toggle {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.sql-toggle button {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); padding: 6px 14px;
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+  transition: all 0.15s;
+}
+
+.sql-toggle button:hover {
+  border-color: var(--accent); color: var(--accent);
+}
+
+.sql-console {
+  display: none;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 16px 20px;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+}
+
+.sql-console.open { display: flex; }
+
+.sql-console textarea {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  color: var(--text-primary);
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+}
+
+.sql-console textarea:focus { border-color: var(--accent); }
+
+.sql-console .actions {
+  display: flex; gap: 8px; align-items: center;
+}
+
+.sql-console .btn-run {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sql-result {
+  overflow: auto;
+  max-height: 140px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.sql-result table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.sql-result th, .sql-result td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sql-result th { color: var(--accent); font-weight: 500; }
+
+/* ── Scrollbar ───────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Chats</h2>
+      <div class="current-user"><span class="dot"></span> <span id="currentUserName">Alice</span></div>
+    </div>
+    <div class="chat-list" id="chatList"></div>
+    <div class="sql-toggle">
+      <button onclick="toggleConsole()">SQL Console</button>
+    </div>
+  </aside>
+
+  <!-- Chat Panel -->
+  <main class="chat-panel" id="chatPanel">
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
+      <p>Select a chat to start messaging</p>
+    </div>
+  </main>
+</div>
+
+<!-- SQL Console (global overlay at bottom) -->
+<div class="sql-console" id="sqlConsole">
+  <textarea id="sqlInput" placeholder="SELECT * FROM app_user;" rows="3"></textarea>
+  <div class="actions">
+    <button class="btn-run" onclick="runSQL()">Run</button>
+    <span style="font-size:12px;color:var(--text-muted)">Ctrl+Enter</span>
+  </div>
+  <div class="sql-result" id="sqlResult"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script>
+// ── State ────────────────────────────────────────────────────
+let db = null;
+let currentUserId = 1;
+let activeChatId  = null;
+
+// ── Boot ─────────────────────────────────────────────────────
+async function boot() {
+  const SQL = await initSqlJs({
+    locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`
+  });
+  db = new SQL.Database();
+  initSchema();
+  seedData();
+  renderChatList();
+}
+
+// ── Schema (SQLite-compatible) ───────────────────────────────
+function initSchema() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS app_user (
+      user_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      username     TEXT    NOT NULL UNIQUE,
+      display_name TEXT,
+      email        TEXT    UNIQUE,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS chat (
+      chat_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      ctype      TEXT    NOT NULL CHECK (ctype IN ('direct','group','channel')),
+      title      TEXT,
+      created_by INTEGER REFERENCES app_user(user_id),
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_participant (
+      chat_id   INTEGER NOT NULL REFERENCES chat(chat_id),
+      user_id   INTEGER NOT NULL REFERENCES app_user(user_id),
+      role      TEXT,
+      joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (chat_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS message (
+      message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id    INTEGER NOT NULL REFERENCES chat(chat_id),
+      sender_id  INTEGER NOT NULL REFERENCES app_user(user_id),
+      mtype      TEXT    NOT NULL CHECK (mtype IN ('text','media','system')),
+      sent_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      edited_at  TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS text_message (
+      message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+      body       TEXT    NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS system_message (
+      message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+      event_type TEXT    NOT NULL,
+      payload    TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS media (
+      media_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind        TEXT    NOT NULL CHECK (kind IN ('image','video','audio','file')),
+      mime_type   TEXT,
+      bytes       INTEGER,
+      url         TEXT,
+      uploaded_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS media_message (
+      message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+      media_id   INTEGER NOT NULL REFERENCES media(media_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS image_media (
+      media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+      width    INTEGER,
+      height   INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS video_media (
+      media_id    INTEGER PRIMARY KEY REFERENCES media(media_id),
+      width       INTEGER,
+      height      INTEGER,
+      duration_ms INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS audio_media (
+      media_id    INTEGER PRIMARY KEY REFERENCES media(media_id),
+      duration_ms INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS file_media (
+      media_id  INTEGER PRIMARY KEY REFERENCES media(media_id),
+      file_name TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS reaction (
+      message_id INTEGER NOT NULL REFERENCES message(message_id),
+      user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+      emoji      TEXT    NOT NULL,
+      reacted_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (message_id, user_id, emoji)
+    );
+
+    CREATE TABLE IF NOT EXISTS read_receipt (
+      message_id INTEGER NOT NULL REFERENCES message(message_id),
+      user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+      read_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (message_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_message_chat_sent ON message(chat_id, sent_at);
+    CREATE INDEX IF NOT EXISTS idx_message_sender    ON message(sender_id);
+  `);
+}
+
+// ── Seed ─────────────────────────────────────────────────────
+function seedData() {
+  db.run(`
+    INSERT INTO app_user (username, display_name, email) VALUES
+      ('alice','Alice Johnson','alice@example.com'),
+      ('bob','Bob Smith','bob@example.com'),
+      ('charlie','Charlie Lee','charlie@example.com'),
+      ('diana','Diana Ruiz','diana@example.com');
+
+    INSERT INTO chat (ctype, title, created_by) VALUES
+      ('direct', NULL, 1),
+      ('group', 'Project Alpha', 1),
+      ('direct', NULL, 1);
+
+    INSERT INTO chat_participant VALUES
+      (1,1,'member'),(1,2,'member'),
+      (2,1,'admin'),(2,2,'member'),(2,3,'member'),(2,4,'member'),
+      (3,1,'member'),(3,3,'member');
+
+    INSERT INTO message (chat_id, sender_id, mtype, sent_at) VALUES
+      (1,1,'text',datetime('now','-2 hours')),
+      (1,2,'text',datetime('now','-115 minutes')),
+      (1,1,'text',datetime('now','-110 minutes')),
+      (2,1,'text',datetime('now','-30 minutes')),
+      (2,3,'text',datetime('now','-28 minutes')),
+      (2,2,'media',datetime('now','-25 minutes')),
+      (2,1,'system',datetime('now','-20 minutes')),
+      (3,3,'text',datetime('now','-5 minutes'));
+
+    INSERT INTO text_message VALUES
+      (1,'Hey Bob! How is the design coming along?'),
+      (2,'Almost done — just finalising the color palette.'),
+      (3,'Nice, send me a screenshot when you can.'),
+      (4,'Team standup: what is everyone working on today?'),
+      (5,'Finishing up the API integration tests.'),
+      (8,'Hey Alice, want to review the PR together?');
+
+    INSERT INTO media (kind, mime_type, bytes, url) VALUES
+      ('image','image/png',204800,'https://cdn.example.com/mockup-v3.png');
+    INSERT INTO media_message VALUES (6,1);
+    INSERT INTO image_media VALUES (1, 1920, 1080);
+
+    INSERT INTO system_message VALUES
+      (7,'member_joined','{"user_id":4,"display_name":"Diana Ruiz"}');
+
+    INSERT INTO reaction (message_id, user_id, emoji) VALUES
+      (1,2,'👍'),(4,2,'🔥'),(4,3,'👋'),(5,1,'💯');
+
+    INSERT INTO read_receipt (message_id, user_id) VALUES
+      (1,2),(2,1),(3,2),(4,2),(4,3),(4,4);
+  `);
+}
+
+// ── Queries ──────────────────────────────────────────────────
+function query(sql, params = []) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+
+function getChatList() {
+  return query(`
+    SELECT c.chat_id, c.ctype, c.title,
+           CASE WHEN c.ctype = 'direct' THEN
+             (SELECT au.display_name FROM chat_participant cp2
+              JOIN app_user au ON au.user_id = cp2.user_id
+              WHERE cp2.chat_id = c.chat_id AND cp2.user_id <> ?
+              LIMIT 1)
+           ELSE c.title END AS chat_name,
+           (SELECT tm.body FROM message m2
+            LEFT JOIN text_message tm ON tm.message_id = m2.message_id
+            WHERE m2.chat_id = c.chat_id ORDER BY m2.sent_at DESC LIMIT 1
+           ) AS last_message,
+           (SELECT m3.sent_at FROM message m3
+            WHERE m3.chat_id = c.chat_id ORDER BY m3.sent_at DESC LIMIT 1
+           ) AS last_activity
+    FROM chat_participant cp
+    JOIN chat c ON c.chat_id = cp.chat_id
+    WHERE cp.user_id = ?
+    ORDER BY last_activity DESC NULLS LAST
+  `, [currentUserId, currentUserId]);
+}
+
+function getMessages(chatId) {
+  return query(`
+    SELECT m.message_id, m.mtype, m.sent_at, m.edited_at, m.sender_id,
+           au.display_name AS sender_name,
+           tm.body,
+           sm.event_type, sm.payload,
+           med.url AS media_url, med.kind AS media_kind
+    FROM message m
+    JOIN app_user au ON au.user_id = m.sender_id
+    LEFT JOIN text_message tm   ON tm.message_id = m.message_id
+    LEFT JOIN system_message sm ON sm.message_id = m.message_id
+    LEFT JOIN media_message mm  ON mm.message_id = m.message_id
+    LEFT JOIN media med         ON med.media_id  = mm.media_id
+    WHERE m.chat_id = ?
+    ORDER BY m.sent_at ASC
+  `, [chatId]);
+}
+
+function getReactions(messageId) {
+  return query(`
+    SELECT r.emoji, COUNT(*) AS cnt
+    FROM reaction r WHERE r.message_id = ? GROUP BY r.emoji
+  `, [messageId]);
+}
+
+function getChatName(chatId) {
+  const r = query(`
+    SELECT CASE WHEN c.ctype='direct' THEN
+      (SELECT au.display_name FROM chat_participant cp2
+       JOIN app_user au ON au.user_id=cp2.user_id
+       WHERE cp2.chat_id=c.chat_id AND cp2.user_id<>? LIMIT 1)
+    ELSE c.title END AS name, c.ctype
+    FROM chat c WHERE c.chat_id=?
+  `, [currentUserId, chatId]);
+  return r[0] || { name: 'Chat', ctype: 'direct' };
+}
+
+function getParticipantCount(chatId) {
+  return query(`SELECT COUNT(*) AS cnt FROM chat_participant WHERE chat_id=?`, [chatId])[0].cnt;
+}
+
+// ── Render ───────────────────────────────────────────────────
+function renderChatList() {
+  const chats = getChatList();
+  const el = document.getElementById('chatList');
+  el.innerHTML = chats.map(c => {
+    const initials = (c.chat_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
+    const preview  = c.last_message || 'No messages yet';
+    const time     = c.last_activity ? formatTime(c.last_activity) : '';
+    const active   = c.chat_id === activeChatId ? ' active' : '';
+    return `
+      <div class="chat-item${active}" onclick="openChat(${c.chat_id})">
+        <div class="chat-avatar">${initials}</div>
+        <div class="chat-item-info">
+          <div class="chat-item-name">${esc(c.chat_name || 'Chat')}</div>
+          <div class="chat-item-preview">${esc(preview)}</div>
+        </div>
+        <div class="chat-item-meta">
+          <span class="chat-item-time">${time}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openChat(chatId) {
+  activeChatId = chatId;
+  renderChatList();
+  renderChatPanel();
+}
+
+function renderChatPanel() {
+  const panel = document.getElementById('chatPanel');
+  if (!activeChatId) {
+    panel.innerHTML = `<div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
+      <p>Select a chat to start messaging</p>
+    </div>`;
+    return;
+  }
+  const info = getChatName(activeChatId);
+  const count = getParticipantCount(activeChatId);
+  const sub = info.ctype === 'group' ? `${count} members` : 'Direct message';
+  const msgs = getMessages(activeChatId);
+
+  let messagesHTML = '';
+  let lastSender = null;
+
+  for (const m of msgs) {
+    if (m.mtype === 'system') {
+      let text = m.event_type;
+      try { const p = JSON.parse(m.payload); text = `${p.display_name} joined`; } catch {}
+      messagesHTML += `<div class="msg-system">${esc(text)}</div>`;
+      lastSender = null;
+      continue;
+    }
+    const mine = m.sender_id === currentUserId;
+    const side = mine ? 'mine' : 'other';
+    const showSender = !mine && m.sender_id !== lastSender;
+
+    if (showSender) {
+      messagesHTML += `<div class="msg-sender">${esc(m.sender_name)}</div>`;
+    }
+
+    let content = '';
+    if (m.mtype === 'text') {
+      content = esc(m.body);
+    } else if (m.mtype === 'media') {
+      content = `<div class="msg-media">📎 ${esc(m.media_kind || 'file')} — ${esc(m.media_url || 'attachment')}</div>`;
+    }
+
+    const reactions = getReactions(m.message_id);
+    let reactHTML = '';
+    if (reactions.length) {
+      reactHTML = `<div class="msg-reactions">${reactions.map(r =>
+        `<span class="reaction-chip">${r.emoji} ${r.cnt}</span>`
+      ).join('')}</div>`;
+    }
+
+    messagesHTML += `
+      <div class="msg-row ${side}">
+        <div class="msg-bubble">
+          ${content}
+          <span class="time">${formatTime(m.sent_at)}</span>
+        </div>
+      </div>
+      ${reactHTML}`;
+    lastSender = m.sender_id;
+  }
+
+  panel.innerHTML = `
+    <div class="chat-header">
+      <div class="chat-avatar">${(info.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
+      <div>
+        <div class="chat-header-name">${esc(info.name)}</div>
+        <div class="chat-header-sub">${sub}</div>
+      </div>
+    </div>
+    <div class="messages" id="messagesScroll">${messagesHTML}</div>
+    <div class="compose">
+      <input id="msgInput" placeholder="Type a message…"
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" />
+      <button class="btn-send" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>`;
+
+  const scroll = document.getElementById('messagesScroll');
+  if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  document.getElementById('msgInput')?.focus();
+}
+
+function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const body = input?.value.trim();
+  if (!body || !activeChatId) return;
+
+  db.run(`INSERT INTO message (chat_id, sender_id, mtype) VALUES (?, ?, 'text')`,
+    [activeChatId, currentUserId]);
+  const lastId = query(`SELECT last_insert_rowid() AS id`)[0].id;
+  db.run(`INSERT INTO text_message (message_id, body) VALUES (?, ?)`, [lastId, body]);
+
+  input.value = '';
+  renderChatList();
+  renderChatPanel();
+}
+
+// ── SQL Console ──────────────────────────────────────────────
+function toggleConsole() {
+  document.getElementById('sqlConsole').classList.toggle('open');
+}
+
+function runSQL() {
+  const sql = document.getElementById('sqlInput').value.trim();
+  if (!sql) return;
+  const el = document.getElementById('sqlResult');
+  try {
+    const results = db.exec(sql);
+    if (!results.length) {
+      el.innerHTML = '<em>Query executed (no rows returned).</em>';
+      renderChatList();
+      renderChatPanel();
+      return;
+    }
+    const r = results[0];
+    el.innerHTML = `<table>
+      <tr>${r.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
+      ${r.values.map(row => `<tr>${row.map(v => `<td>${esc(String(v ?? 'NULL'))}</td>`).join('')}</tr>`).join('')}
+    </table>`;
+    renderChatList();
+    renderChatPanel();
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') runSQL();
+});
+
+// ── Helpers ──────────────────────────────────────────────────
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts + 'Z');
+  if (isNaN(d)) return ts;
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 86400000 && d.getDate() === now.getDate()) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── Init ─────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>

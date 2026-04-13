@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Xcode
+ios/**/xcuserdata/
+ios/**/build/
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# DataGrip / JetBrains
+.idea/dataSources.local.xml
+.idea/workspace.xml
+.idea/tasks.xml
+
+# SQLite runtime databases
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
