@@ -36,6 +36,8 @@ SELECT m.message_id,
        m.mtype,
        m.sent_at,
        m.edited_at,
+       m.reply_to_id,
+       m.is_pinned,
        au.display_name   AS sender_name,
        tm.body           AS text_body,
        sm.event_type     AS system_event,
@@ -49,6 +51,7 @@ LEFT JOIN system_message sm ON sm.message_id = m.message_id
 LEFT JOIN media_message mm ON mm.message_id = m.message_id
 LEFT JOIN media med        ON med.media_id  = mm.media_id
 WHERE  m.chat_id = 2  -- :chat_id
+  AND  m.is_deleted = FALSE
 ORDER  BY m.sent_at ASC
 LIMIT  50
 OFFSET 0;  -- :page_offset
@@ -117,3 +120,61 @@ WHERE  m.chat_id = 2    -- :chat_id
   AND  m.sent_at <= now()
   AND  m.sender_id <> 1 -- :current_user_id
 ON CONFLICT (message_id, user_id) DO NOTHING;
+
+
+-- ============================================================
+-- Contact queries
+-- ============================================================
+
+-- 8. Fetch all contacts for a user (sorted by display name)
+SELECT au.user_id,
+       au.display_name,
+       au.username,
+       au.phone,
+       au.avatar_color,
+       au.is_online,
+       au.last_seen_at,
+       c.nickname,
+       c.is_favorite
+FROM   contact c
+JOIN   app_user au ON au.user_id = c.contact_id
+WHERE  c.owner_id = 1  -- :current_user_id
+ORDER  BY c.is_favorite DESC, au.display_name ASC;
+
+
+-- 9. Search contacts by name, username, or phone
+SELECT au.user_id,
+       au.display_name,
+       au.username,
+       au.phone,
+       au.avatar_color,
+       au.is_online,
+       au.last_seen_at
+FROM   contact c
+JOIN   app_user au ON au.user_id = c.contact_id
+WHERE  c.owner_id = 1  -- :current_user_id
+  AND  (au.display_name ILIKE '%bob%'   -- :search_term
+        OR au.username ILIKE '%bob%'
+        OR au.phone LIKE '%bob%')
+ORDER  BY au.display_name ASC;
+
+
+-- 10. Find or create a direct chat with a contact
+SELECT c.chat_id
+FROM   chat c
+JOIN   chat_participant cp1 ON cp1.chat_id = c.chat_id AND cp1.user_id = 1  -- :current_user_id
+JOIN   chat_participant cp2 ON cp2.chat_id = c.chat_id AND cp2.user_id = 2  -- :contact_user_id
+WHERE  c.ctype = 'direct';
+
+-- If no result, create one:
+-- INSERT INTO chat (ctype, created_by) VALUES ('direct', 1) RETURNING chat_id;
+-- INSERT INTO chat_participant (chat_id, user_id, role) VALUES (:new_id, 1, 'member'), (:new_id, 2, 'member');
+
+
+-- 11. Online contacts
+SELECT au.user_id, au.display_name, au.avatar_color
+FROM   contact c
+JOIN   app_user au ON au.user_id = c.contact_id
+WHERE  c.owner_id = 1  -- :current_user_id
+  AND  au.is_online = TRUE
+ORDER  BY au.display_name ASC;
