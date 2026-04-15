@@ -1,15 +1,10 @@
 import SwiftUI
 
 struct SearchView: View {
-    let selectedTab: AppTab
-
     @State private var searchQuery = ""
     @State private var chatResults: [ChatItem] = []
     @State private var contactResults: [ContactItem] = []
     @State private var navigateToChatId: Int64?
-
-    @Environment(\.isSearching) private var isSearching
-    @Environment(\.dismissSearch) private var dismissSearch
 
     private let currentUserId: Int64 = 1
 
@@ -38,9 +33,9 @@ struct SearchView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .navigationTitle("Search")
-            .searchable(text: $searchQuery, prompt: searchPrompt)
+            .searchable(text: $searchQuery, prompt: "Search chats and contacts")
             .onChange(of: searchQuery) { performSearch() }
             .navigationDestination(item: $navigateToChatId) { chatId in
                 ChatDetailView(chatId: chatId, currentUserId: currentUserId)
@@ -48,15 +43,8 @@ struct SearchView: View {
         }
     }
 
-    private var searchPrompt: String {
-        switch selectedTab {
-        case .contacts: return "Search contacts"
-        case .chats:    return "Search chats and contacts"
-        }
-    }
-
     private var recentSection: some View {
-        Section("Recent") {
+        Section("Recent Chats") {
             let recentChats = ChatDatabase.shared.fetchChatList(userId: currentUserId).prefix(5)
             ForEach(Array(recentChats.enumerated()), id: \.offset) { _, item in
                 Button {
@@ -68,11 +56,11 @@ struct SearchView: View {
                         avatarCircle(initials, size: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name)
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                             if let msg = item.lastMessage {
                                 Text(msg)
-                                    .font(.system(size: 13))
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
@@ -102,10 +90,10 @@ struct SearchView: View {
                     )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(contact.resolvedName)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                     Text(contact.lastSeenFormatted)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(contact.isOnline ? .green : .secondary)
                 }
             }
@@ -120,10 +108,10 @@ struct SearchView: View {
                 avatarCircle(chat.initials, size: 36)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(chat.name)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                     Text(chat.lastMessage)
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

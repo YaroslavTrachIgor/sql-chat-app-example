@@ -22,22 +22,18 @@ struct ChatDetailView: View {
         .onChange(of: chatId) { loadData() }
     }
 
-    // MARK: - Header toolbar
-
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
                 Text(chatName)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.headline)
                 Text(memberCount > 2 ? "\(memberCount) members" : "Direct message")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
     }
-
-    // MARK: - Messages
 
     private var messageList: some View {
         ScrollViewReader { proxy in
@@ -79,7 +75,7 @@ struct ChatDetailView: View {
             return msg.eventType ?? "system event"
         }()
         return Text(text)
-            .font(.system(size: 13))
+            .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
@@ -90,8 +86,8 @@ struct ChatDetailView: View {
         return VStack(alignment: mine ? .trailing : .leading, spacing: 2) {
             if !mine {
                 Text(msg.senderName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.blue)
                     .padding(.leading, 4)
             }
 
@@ -103,21 +99,22 @@ struct ChatDetailView: View {
                             Image(systemName: "paperclip")
                             Text(msg.mediaKind ?? "file")
                         }
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                     } else {
                         Text(msg.body ?? "")
-                            .font(.system(size: 15))
+                            .font(.body)
+                            .foregroundStyle(mine ? .white : .primary)
                     }
                     Text(msg.displayTime)
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(mine ? 0.5 : 0.35))
+                        .foregroundStyle(mine ? .white.opacity(0.6) : .secondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(mine
-                    ? Color.accentColor
-                    : Color(red: 0.15, green: 0.15, blue: 0.27))
+                    ? Color.blue
+                    : Color(.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 if !mine { Spacer(minLength: 60) }
             }
@@ -126,10 +123,10 @@ struct ChatDetailView: View {
                 HStack(spacing: 4) {
                     ForEach(msg.reactions) { r in
                         Text("\(r.emoji) \(r.count)")
-                            .font(.system(size: 13))
+                            .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.15))
+                            .background(Color(.tertiarySystemFill))
                             .clipShape(Capsule())
                     }
                 }
@@ -138,30 +135,26 @@ struct ChatDetailView: View {
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
     }
 
-    // MARK: - Compose
-
     private var composeBar: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message…", text: $draft)
+        HStack(spacing: 10) {
+            TextField("Message", text: $draft)
                 .textFieldStyle(.plain)
-                .padding(12)
-                .background(Color(red: 0.1, green: 0.1, blue: 0.24))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemGroupedBackground))
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.gray.opacity(0.25), lineWidth: 1))
                 .onSubmit { send() }
 
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.system(size: 32))
             }
             .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
     }
-
-    // MARK: - Actions
 
     private func send() {
         let text = draft.trimmingCharacters(in: .whitespaces)

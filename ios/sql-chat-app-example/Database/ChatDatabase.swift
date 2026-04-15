@@ -171,6 +171,20 @@ final class ChatDatabase {
     }
 
     func fetchContacts(userId: Int64) -> [ContactRow] {
+        fetchContactsSorted(userId: userId, sortOrder: .name)
+    }
+
+    func fetchContactsSorted(userId: Int64, sortOrder: ContactSortOrder) -> [ContactRow] {
+        let orderClause: String
+        switch sortOrder {
+        case .name:
+            orderClause = "c.is_favorite DESC, au.display_name ASC"
+        case .lastSeen:
+            orderClause = "au.is_online DESC, au.last_seen_at DESC"
+        case .recentlyAdded:
+            orderClause = "c.added_at DESC"
+        }
+
         let sql = """
             SELECT au.user_id, au.display_name, au.username, au.phone,
                    au.avatar_color, au.is_online, au.last_seen_at,
@@ -178,7 +192,7 @@ final class ChatDatabase {
             FROM contact c
             JOIN app_user au ON au.user_id = c.contact_id
             WHERE c.owner_id = ?
-            ORDER BY c.is_favorite DESC, au.display_name ASC
+            ORDER BY \(orderClause)
         """
         var rows: [ContactRow] = []
         var stmt: OpaquePointer?
@@ -267,6 +281,37 @@ final class ChatDatabase {
               (\(chatId), \(contactUserId), 'member')
         """)
         return chatId
+    }
+
+    // MARK: - Insert new contact
+
+    private static let avatarColors = [
+        "#e74c3c", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c",
+        "#f39c12", "#3498db", "#e91e63", "#ff5722", "#8bc34a", "#00bcd4"
+    ]
+
+    func insertUserAndContact(currentUserId: Int64, username: String, displayName: String, phone: String?) -> Int64 {
+        let color = Self.avatarColors.randomElement() ?? "#4361ee"
+        let safeUser = username.replacingOccurrences(of: "'", with: "''")
+        let safeName = displayName.replacingOccurrences(of: "'", with: "''")
+
+        var insertSQL = "INSERT INTO app_user (username, display_name, avatar_color"
+        var valuesSQL = "VALUES ('\(safeUser)', '\(safeName)', '\(color)'"
+
+        if let phone, !phone.isEmpty {
+            let safePhone = phone.replacingOccurrences(of: "'", with: "''")
+            insertSQL += ", phone"
+            valuesSQL += ", '\(safePhone)'"
+        }
+
+        insertSQL += ") " + valuesSQL + ")"
+        exec(insertSQL)
+
+        let userId = queryScalar("SELECT last_insert_rowid()")
+        guard userId > 0 else { return 0 }
+
+        exec("INSERT INTO contact (owner_id, contact_id) VALUES (\(currentUserId), \(userId))")
+        return userId
     }
 
     // MARK: - Messages

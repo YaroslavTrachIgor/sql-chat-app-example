@@ -1,35 +1,26 @@
 import SwiftUI
 
 struct ChatsTab: View {
-    @Binding var searchText: String
-    @Binding var isSearching: Bool
-
     @State private var chats: [ChatItem] = []
-    @State private var selectedChatId: Int64?
     @State private var chatSearchText = ""
 
     private let currentUserId: Int64 = 1
 
     var body: some View {
         NavigationStack {
-            List(filteredChats, selection: $selectedChatId) { chat in
-                NavigationLink(value: chat.id) {
-                    chatRow(chat)
+            List {
+                ForEach(filteredChats) { chat in
+                    NavigationLink(value: chat.id) {
+                        chatRow(chat)
+                    }
                 }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedChatId == chat.id
-                              ? Color.accentColor.opacity(0.15)
-                              : Color.clear)
-                )
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .navigationTitle("Chats")
             .searchable(text: $chatSearchText, prompt: "Search chats")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                    } label: {
+                    Button {} label: {
                         Image(systemName: "square.and.pencil")
                     }
                 }
@@ -54,19 +45,20 @@ struct ChatsTab: View {
             avatarCircle(chat.initials, size: 48)
             VStack(alignment: .leading, spacing: 3) {
                 Text(chat.name)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(chat.lastMessage)
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer()
             Text(chat.lastActivity)
-                .font(.system(size: 12))
-                .foregroundStyle(.tertiary)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private func loadChats() {
