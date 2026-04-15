@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQL Chat DB Workbench</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel-2: #172241;
+      --border: #28365f;
+      --text: #ecf1ff;
+      --muted: #9eadcf;
+      --accent: #4f7cff;
+      --accent-2: #6d91ff;
+      --danger: #ef6b6b;
+      --success: #4dd4ac;
+      --shadow: 0 12px 30px rgba(1, 6, 20, 0.38);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 10% 10%, #12204a 0%, #0b1020 42%, #0b1020 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, #111b37 0%, #0f1730 100%);
+      padding: 18px 14px;
+      overflow-y: auto;
+    }
+
+    .brand {
+      margin-bottom: 18px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .sidebar h2 {
+      margin: 14px 8px 10px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .table-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #111d3c;
+      color: var(--text);
+      padding: 9px 11px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .nav-btn.active {
+      border-color: var(--accent);
+      background: rgba(79, 124, 255, 0.16);
+    }
+
+    .table-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 9px 11px;
+      cursor: pointer;
+      transition: 0.12s ease;
+      font-size: 13px;
+    }
+
+    .table-btn:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .table-btn.active {
+      border-color: var(--accent);
+      background: rgba(79, 124, 255, 0.14);
+      color: #dce6ff;
+    }
+
+    .content {
+      padding: 20px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 14px;
+    }
+
+    .help {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .hidden { display: none !important; }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel) 0%, #111a33 100%);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+
+    .panel-head h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .panel-body { padding: 12px 14px 14px; }
+    .meta { color: var(--muted); font-size: 12px; }
+
+    .schema-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #d8e3ff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .relations {
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0e1730;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .relations .from { color: #d8e3ff; }
+    .relations .to { color: #9bd8ff; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .sql-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    select, textarea, button {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+    }
+
+    select, button { padding: 8px 10px; font-size: 13px; }
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 10px;
+      resize: vertical;
+      line-height: 1.4;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
+      border-color: #5b84ff;
+      color: #fff;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #1c2a4f;
+      border-color: var(--border);
+    }
+
+    .results-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0e1730;
+      max-height: 360px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid #203259;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+      max-width: 280px;
+      word-break: break-word;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #132046;
+      z-index: 1;
+      font-weight: 600;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--success); }
+    .status.err { color: var(--danger); }
+
+    .view-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .input {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 9px 10px;
+      font: inherit;
+      margin-bottom: 8px;
+    }
+
+    .view-list {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0e1730;
+      max-height: 280px;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .view-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .view-item.active {
+      border-color: var(--accent);
+      background: rgba(79, 124, 255, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>SQL Chat DB Workbench</h1>
+        <p>Explore tables, run queries, and build views</p>
+      </div>
+      <h2>Workspace</h2>
+      <div class="nav-list">
+        <button class="nav-btn active" data-page="explorer">Data Explorer</button>
+        <button class="nav-btn" data-page="views">View Builder</button>
+      </div>
+      <h2>Tables</h2>
+      <div id="tableList" class="table-list"></div>
+    </aside>
+
+    <main class="content">
+      <section id="explorerPage">
+      <section class="panel">
+        <div class="panel-head">
+          <h3 id="tableTitle">Selected Table</h3>
+          <div id="tableRowCount" class="meta"></div>
+        </div>
+        <div class="panel-body schema-grid">
+          <div>
+            <div class="meta">Columns (field name + data type)</div>
+            <div id="columnChips" class="chips"></div>
+          </div>
+          <div>
+            <div class="meta">How this table connects</div>
+            <div id="relationshipView" class="relations"></div>
+            <div class="help">Use this to quickly understand what links to what. "Points to" means this table stores a foreign key to another table.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h3>Query Runner</h3>
+          <div class="sql-tools">
+            <select id="queryTemplates"></select>
+            <button class="secondary" id="loadTemplateBtn">Use example</button>
+            <button id="runQueryBtn">Run Query</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <textarea id="sqlInput" spellcheck="false"></textarea>
+          <div class="help">Tip: Start with "Use example", then edit it. You can run SELECT, INSERT, UPDATE, CREATE VIEW, and more.</div>
+          <div id="queryStatus" class="status"></div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Table Data</h3>
+            <div class="meta">First 100 rows from selected table</div>
+          </div>
+          <div class="panel-body">
+            <div id="tableData" class="results-wrap"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Query Results</h3>
+            <div id="queryMeta" class="meta"></div>
+          </div>
+          <div class="panel-body">
+            <div id="queryResults" class="results-wrap"></div>
+          </div>
+        </div>
+      </section>
+      </section>
+
+      <section id="viewsPage" class="hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Create a SQL View</h3>
+            <button id="createViewBtn">Create View</button>
+          </div>
+          <div class="panel-body">
+            <div class="sql-tools">
+              <select id="viewTemplateSelect"></select>
+              <button class="secondary" id="loadViewTemplateBtn">Load template</button>
+            </div>
+            <input id="viewNameInput" class="input" placeholder="View name (example: v_chat_summary)" />
+            <textarea id="viewSqlInput" spellcheck="false">SELECT ch.chat_id,
+       COALESCE(ch.title, '[direct chat]') AS chat_title,
+       COUNT(m.message_id) AS total_messages
+FROM chat ch
+LEFT JOIN message m ON m.chat_id = ch.chat_id
+GROUP BY ch.chat_id, ch.title;</textarea>
+            <div class="help">A view is a saved query. Enter a SELECT statement only, then click Create View.</div>
+            <div id="viewStatus" class="status"></div>
+          </div>
+        </section>
+
+        <section class="view-grid">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Saved Views</h3>
+              <div class="sql-tools">
+                <button class="secondary" id="refreshViewsBtn">Refresh</button>
+                <button class="secondary" id="deleteViewBtn">Delete Selected</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="viewsList" class="view-list"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3>View Preview</h3>
+              <div id="selectedViewMeta" class="meta"></div>
+            </div>
+            <div class="panel-body">
+              <div id="viewPreview" class="results-wrap"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script>
+    let db = null;
+    let currentTable = null;
+    let currentPage = "explorer";
+    let selectedViewName = null;
+
+    const TABLES = [
+      "app_user","contact","blocked_user","chat","chat_participant","message","text_message",
+      "system_message","message_status","media","media_message","image_media","video_media",
+      "audio_media","file_media","reaction","read_receipt","typing_indicator","call","call_participant"
+    ];
+
+    const QUERY_TEMPLATES = [
+      {
+        name: "INNER JOIN: recent messages with sender",
+        sql: `SELECT m.message_id, m.chat_id, au.display_name AS sender, m.mtype, m.sent_at
+FROM message m
+INNER JOIN app_user au ON au.user_id = m.sender_id
+ORDER BY m.sent_at DESC
+LIMIT 20;`
+      },
+      {
+        name: "LEFT OUTER JOIN: users and optional contacts",
+        sql: `SELECT u.user_id, u.display_name, c.contact_id, cu.display_name AS contact_name
+FROM app_user u
+LEFT OUTER JOIN contact c ON c.owner_id = u.user_id
+LEFT OUTER JOIN app_user cu ON cu.user_id = c.contact_id
+ORDER BY u.user_id, c.contact_id;`
+      },
+      {
+        name: "Complex JOIN: chat transcript with message variants",
+        sql: `SELECT ch.chat_id,
+       COALESCE(ch.title, '[direct chat]') AS chat_title,
+       m.message_id,
+       au.display_name AS sender,
+       m.mtype,
+       COALESCE(tm.body, sm.event_type, md.kind) AS rendered_content,
+       m.sent_at
+FROM chat ch
+JOIN message m ON m.chat_id = ch.chat_id
+JOIN app_user au ON au.user_id = m.sender_id
+LEFT JOIN text_message tm ON tm.message_id = m.message_id
+LEFT JOIN system_message sm ON sm.message_id = m.message_id
+LEFT JOIN media_message mm ON mm.message_id = m.message_id
+LEFT JOIN media md ON md.media_id = mm.media_id
+ORDER BY ch.chat_id, m.sent_at;`
+      },
+      {
+        name: "Aggregate + HAVING: active participants by chat",
+        sql: `SELECT ch.chat_id,
+       COALESCE(ch.title, '[direct chat]') AS chat_title,
+       COUNT(DISTINCT cp.user_id) AS participants,
+       COUNT(DISTINCT m.message_id) AS message_count
+FROM chat ch
+LEFT JOIN chat_participant cp ON cp.chat_id = ch.chat_id
+LEFT JOIN message m ON m.chat_id = ch.chat_id
+GROUP BY ch.chat_id, ch.title
+HAVING COUNT(DISTINCT cp.user_id) >= 2
+ORDER BY message_count DESC;`
+      },
+      {
+        name: "Correlated subquery: latest message per chat",
+        sql: `SELECT c.chat_id,
+       COALESCE(c.title, '[direct chat]') AS chat_title,
+       m.message_id,
+       m.sent_at
+FROM chat c
+LEFT JOIN message m
+  ON m.message_id = (
+    SELECT m2.message_id
+    FROM message m2
+    WHERE m2.chat_id = c.chat_id
+    ORDER BY m2.sent_at DESC
+    LIMIT 1
+  )
+ORDER BY c.chat_id;`
+      }
+    ];
+
+    const VIEW_TEMPLATES = [
+      {
+        name: "Chat Summary",
+        viewName: "v_chat_summary",
+        sql: `SELECT ch.chat_id,
+       COALESCE(ch.title, '[direct chat]') AS chat_title,
+       ch.ctype AS chat_type,
+       COUNT(DISTINCT cp.user_id) AS participants,
+       COUNT(DISTINCT m.message_id) AS total_messages
+FROM chat ch
+LEFT JOIN chat_participant cp ON cp.chat_id = ch.chat_id
+LEFT JOIN message m ON m.chat_id = ch.chat_id
+GROUP BY ch.chat_id, ch.title, ch.ctype;`
+      },
+      {
+        name: "Recent Message Feed",
+        viewName: "v_recent_message_feed",
+        sql: `SELECT m.message_id,
+       m.chat_id,
+       au.display_name AS sender_name,
+       m.mtype AS message_type,
+       COALESCE(tm.body, sm.event_type, md.kind) AS message_preview,
+       m.sent_at
+FROM message m
+JOIN app_user au ON au.user_id = m.sender_id
+LEFT JOIN text_message tm ON tm.message_id = m.message_id
+LEFT JOIN system_message sm ON sm.message_id = m.message_id
+LEFT JOIN media_message mm ON mm.message_id = m.message_id
+LEFT JOIN media md ON md.media_id = mm.media_id;`
+      },
+      {
+        name: "User Activity Snapshot",
+        viewName: "v_user_activity",
+        sql: `SELECT u.user_id,
+       u.display_name,
+       u.is_online,
+       COUNT(DISTINCT cp.chat_id) AS chats_joined,
+       COUNT(DISTINCT m.message_id) AS messages_sent,
+       MAX(m.sent_at) AS last_message_at
+FROM app_user u
+LEFT JOIN chat_participant cp ON cp.user_id = u.user_id
+LEFT JOIN message m ON m.sender_id = u.user_id
+GROUP BY u.user_id, u.display_name, u.is_online;`
+      },
+      {
+        name: "Unread-Like Candidates",
+        viewName: "v_unread_candidates",
+        sql: `SELECT m.message_id,
+       m.chat_id,
+       m.sender_id,
+       m.sent_at
+FROM message m
+LEFT JOIN read_receipt rr
+  ON rr.message_id = m.message_id
+WHERE rr.message_id IS NULL;`
+      }
+    ];
+
+    async function boot() {
+      const SQL = await initSqlJs({
+        locateFile: (f) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`
+      });
+      db = new SQL.Database();
+      db.run("PRAGMA foreign_keys = ON;");
+      initSchema();
+      seedData();
+      initTemplates();
+      initNavigation();
+      renderSidebar();
+      selectTable(TABLES[0]);
+      initViews();
+      setStatus("Database initialized with full schema and sample data.", true);
+    }
+
+    function initSchema() {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS app_user (
+          user_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+          username     TEXT NOT NULL UNIQUE,
+          display_name TEXT,
+          email        TEXT UNIQUE,
+          phone        TEXT UNIQUE,
+          bio          TEXT,
+          avatar_url   TEXT,
+          avatar_color TEXT NOT NULL DEFAULT '#4361ee',
+          is_online    INTEGER NOT NULL DEFAULT 0,
+          last_seen_at TEXT,
+          created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS contact (
+          owner_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+          contact_id  INTEGER NOT NULL REFERENCES app_user(user_id),
+          nickname    TEXT,
+          is_favorite INTEGER NOT NULL DEFAULT 0,
+          added_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (owner_id, contact_id),
+          CHECK (owner_id <> contact_id)
+        );
+        CREATE TABLE IF NOT EXISTS blocked_user (
+          user_id         INTEGER NOT NULL REFERENCES app_user(user_id),
+          blocked_user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+          blocked_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, blocked_user_id)
+        );
+        CREATE TABLE IF NOT EXISTS chat (
+          chat_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+          ctype      TEXT NOT NULL CHECK (ctype IN ('direct','group','channel')),
+          title      TEXT,
+          created_by INTEGER REFERENCES app_user(user_id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS chat_participant (
+          chat_id     INTEGER NOT NULL REFERENCES chat(chat_id),
+          user_id     INTEGER NOT NULL REFERENCES app_user(user_id),
+          role        TEXT,
+          is_muted    INTEGER NOT NULL DEFAULT 0,
+          muted_until TEXT,
+          joined_at   TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (chat_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS message (
+          message_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+          chat_id     INTEGER NOT NULL REFERENCES chat(chat_id),
+          sender_id   INTEGER NOT NULL REFERENCES app_user(user_id),
+          mtype       TEXT NOT NULL CHECK (mtype IN ('text','media','system')),
+          reply_to_id INTEGER REFERENCES message(message_id),
+          is_pinned   INTEGER NOT NULL DEFAULT 0,
+          is_deleted  INTEGER NOT NULL DEFAULT 0,
+          sent_at     TEXT NOT NULL DEFAULT (datetime('now')),
+          edited_at   TEXT
+        );
+        CREATE TABLE IF NOT EXISTS text_message (
+          message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+          body       TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS system_message (
+          message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+          event_type TEXT NOT NULL,
+          payload    TEXT
+        );
+        CREATE TABLE IF NOT EXISTS message_status (
+          message_id INTEGER NOT NULL REFERENCES message(message_id),
+          user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+          status     TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent','delivered','read','failed')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (message_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS media (
+          media_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+          kind        TEXT NOT NULL CHECK (kind IN ('image','video','audio','file')),
+          mime_type   TEXT,
+          bytes       INTEGER,
+          url         TEXT,
+          uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS media_message (
+          message_id INTEGER PRIMARY KEY REFERENCES message(message_id),
+          media_id   INTEGER NOT NULL REFERENCES media(media_id)
+        );
+        CREATE TABLE IF NOT EXISTS image_media (
+          media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+          width INTEGER, height INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS video_media (
+          media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+          width INTEGER, height INTEGER, duration_ms INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS audio_media (
+          media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+          duration_ms INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS file_media (
+          media_id INTEGER PRIMARY KEY REFERENCES media(media_id),
+          file_name TEXT
+        );
+        CREATE TABLE IF NOT EXISTS reaction (
+          message_id INTEGER NOT NULL REFERENCES message(message_id),
+          user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+          emoji      TEXT NOT NULL,
+          reacted_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (message_id, user_id, emoji)
+        );
+        CREATE TABLE IF NOT EXISTS read_receipt (
+          message_id INTEGER NOT NULL REFERENCES message(message_id),
+          user_id    INTEGER NOT NULL REFERENCES app_user(user_id),
+          read_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (message_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS typing_indicator (
+          chat_id INTEGER NOT NULL REFERENCES chat(chat_id),
+          user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (chat_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS call (
+          call_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+          chat_id    INTEGER NOT NULL REFERENCES chat(chat_id),
+          started_by INTEGER NOT NULL REFERENCES app_user(user_id),
+          ctype      TEXT NOT NULL CHECK (ctype IN ('voice','video')),
+          status     TEXT NOT NULL DEFAULT 'ringing' CHECK (status IN ('ringing','active','ended','missed','declined')),
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          ended_at   TEXT
+        );
+        CREATE TABLE IF NOT EXISTS call_participant (
+          call_id INTEGER NOT NULL REFERENCES call(call_id),
+          user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+          joined_at TEXT, left_at TEXT,
+          PRIMARY KEY (call_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_message_chat_sent ON message(chat_id, sent_at);
+        CREATE INDEX IF NOT EXISTS idx_contact_owner ON contact(owner_id);
+      `);
+    }
+
+    function seedData() {
+      db.run(`
+        INSERT INTO app_user (username, display_name, email, phone, bio, avatar_color, is_online, last_seen_at) VALUES
+          ('alice','Alice Johnson','alice@example.com','+1-555-0101','Product designer','#4361ee',1,datetime('now')),
+          ('bob','Bob Smith','bob@example.com','+1-555-0102','Frontend engineer','#e74c3c',0,datetime('now','-15 minutes')),
+          ('charlie','Charlie Lee','charlie@example.com','+1-555-0103','Backend developer','#2ecc71',0,datetime('now','-2 hours')),
+          ('diana','Diana Ruiz','diana@example.com','+1-555-0104','QA lead','#9b59b6',1,datetime('now')),
+          ('elena','Elena Petrova','elena@example.com','+1-555-0105','DevOps engineer','#e67e22',0,datetime('now','-1 day')),
+          ('frank','Frank Torres','frank@example.com','+1-555-0106','Mobile developer','#1abc9c',0,datetime('now','-3 days')),
+          ('grace','Grace Kim','grace@example.com','+1-555-0107','Data scientist','#f39c12',1,datetime('now')),
+          ('henry','Henry Wang','henry@example.com','+1-555-0108','Security engineer','#3498db',0,datetime('now','-5 hours')),
+          ('isabella','Isabella Costa','isabella@example.com','+1-555-0109','UX researcher','#e91e63',0,datetime('now','-30 minutes')),
+          ('james','James Murphy','james@example.com','+1-555-0110','Tech lead','#ff5722',0,datetime('now','-12 hours')),
+          ('katya','Katya Novak','katya@example.com','+1-555-0111','Project manager','#8bc34a',1,datetime('now')),
+          ('lucas','Lucas Andersen','lucas@example.com','+1-555-0112','Fullstack dev','#00bcd4',0,datetime('now','-4 days'));
+
+        INSERT INTO contact (owner_id, contact_id, nickname, is_favorite) VALUES
+          (1,2,NULL,1),(1,3,NULL,0),(1,4,NULL,1),
+          (1,5,'Lena',0),(1,6,NULL,0),(1,7,NULL,1),
+          (1,8,NULL,0),(1,9,'Isa',0),(1,10,NULL,0),
+          (1,11,NULL,0),(1,12,NULL,0);
+
+        INSERT INTO chat (ctype, title, created_by) VALUES
+          ('direct', NULL, 1),
+          ('group', 'Project Alpha', 1),
+          ('direct', NULL, 1);
+
+        INSERT INTO chat_participant VALUES
+          (1,1,'member',0,NULL,datetime('now')),
+          (1,2,'member',0,NULL,datetime('now')),
+          (2,1,'admin',0,NULL,datetime('now')),
+          (2,2,'member',0,NULL,datetime('now')),
+          (2,3,'member',0,NULL,datetime('now')),
+          (2,4,'member',0,NULL,datetime('now')),
+          (3,1,'member',0,NULL,datetime('now')),
+          (3,3,'member',0,NULL,datetime('now'));
+
+        INSERT INTO message (chat_id, sender_id, mtype, sent_at) VALUES
+          (1,1,'text',datetime('now','-2 hours')),
+          (1,2,'text',datetime('now','-115 minutes')),
+          (1,1,'text',datetime('now','-110 minutes')),
+          (2,1,'text',datetime('now','-30 minutes')),
+          (2,3,'text',datetime('now','-28 minutes')),
+          (2,2,'media',datetime('now','-25 minutes')),
+          (2,1,'system',datetime('now','-20 minutes')),
+          (3,3,'text',datetime('now','-5 minutes'));
+
+        INSERT INTO text_message VALUES
+          (1,'Hey Bob! How is the design coming along?'),
+          (2,'Almost done - just finalising the color palette.'),
+          (3,'Nice, send me a screenshot when you can.'),
+          (4,'Team standup: what is everyone working on today?'),
+          (5,'Finishing up the API integration tests.'),
+          (8,'Hey Alice, want to review the PR together?');
+
+        INSERT INTO media (kind, mime_type, bytes, url) VALUES
+          ('image','image/png',204800,'https://cdn.example.com/mockup-v3.png');
+        INSERT INTO media_message VALUES (6,1);
+        INSERT INTO image_media VALUES (1,1920,1080);
+
+        INSERT INTO system_message VALUES
+          (7,'member_joined','{"user_id":4,"display_name":"Diana Ruiz"}');
+
+        INSERT INTO reaction (message_id, user_id, emoji) VALUES
+          (1,2,'thumbs_up'),(4,2,'fire'),(4,3,'wave'),(5,1,'hundred');
+
+        INSERT INTO read_receipt (message_id, user_id) VALUES
+          (1,2),(2,1),(3,2),(4,2),(4,3),(4,4);
+      `);
+    }
+
+    function query(sql) {
+      const stmt = db.prepare(sql);
+      const rows = [];
+      while (stmt.step()) rows.push(stmt.getAsObject());
+      stmt.free();
+      return rows;
+    }
+
+    function listColumns(table) {
+      return query(`PRAGMA table_info(${table});`);
+    }
+
+    function listForeignKeys(table) {
+      return query(`PRAGMA foreign_key_list(${table});`);
+    }
+
+    function initNavigation() {
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.page;
+          if (target) setPage(target);
+        });
+      });
+      setPage("explorer");
+    }
+
+    function setPage(pageName) {
+      currentPage = pageName;
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.page === pageName);
+      });
+      document.getElementById("explorerPage").classList.toggle("hidden", pageName !== "explorer");
+      document.getElementById("viewsPage").classList.toggle("hidden", pageName !== "views");
+      if (pageName === "views") renderViewsList();
+    }
+
+    function renderSidebar() {
+      const list = document.getElementById("tableList");
+      list.innerHTML = "";
+      TABLES.forEach((table) => {
+        const btn = document.createElement("button");
+        btn.className = "table-btn";
+        btn.textContent = table;
+        btn.addEventListener("click", () => selectTable(table));
+        list.appendChild(btn);
+      });
+    }
+
+    function selectTable(table) {
+      currentTable = table;
+      document.querySelectorAll(".table-btn").forEach((b) => {
+        b.classList.toggle("active", b.textContent === table);
+      });
+      document.getElementById("tableTitle").textContent = `Selected Table: ${table}`;
+
+      const columns = listColumns(table);
+      const chips = document.getElementById("columnChips");
+      chips.innerHTML = "";
+      columns.forEach((c) => {
+        const el = document.createElement("div");
+        el.className = "chip";
+        const nullable = c.notnull ? "NOT NULL" : "NULL";
+        const pk = c.pk ? " PK" : "";
+        el.textContent = `${c.name} (${c.type || "TEXT"}, ${nullable}${pk})`;
+        chips.appendChild(el);
+      });
+
+      const relContainer = document.getElementById("relationshipView");
+      relContainer.innerHTML = "";
+      const outFk = listForeignKeys(table);
+      if (!outFk.length) {
+        relContainer.innerHTML = "<span class='meta'>This table does not point to other tables.</span>";
+      } else {
+        outFk.forEach((fk) => {
+          const row = document.createElement("div");
+          row.innerHTML = `<span class="from">${fk.from}</span> points to <span class="to">${fk.table}.${fk.to}</span>`;
+          relContainer.appendChild(row);
+        });
+      }
+
+      const inLinks = [];
+      TABLES.forEach((t) => {
+        listForeignKeys(t).forEach((fk) => {
+          if (fk.table === table) inLinks.push(`${t}.${fk.from} -> ${table}.${fk.to}`);
+        });
+      });
+      if (inLinks.length) {
+        const inboundTitle = document.createElement("div");
+        inboundTitle.className = "meta";
+        inboundTitle.style.marginTop = "8px";
+        inboundTitle.textContent = "Other tables that point here";
+        relContainer.appendChild(inboundTitle);
+        inLinks.forEach((l) => {
+          const row = document.createElement("div");
+          row.textContent = l.replace(" -> ", " points to ");
+          relContainer.appendChild(row);
+        });
+      }
+
+      const rows = query(`SELECT * FROM ${table} LIMIT 100;`);
+      const count = query(`SELECT COUNT(*) AS total FROM ${table};`)[0].total;
+      document.getElementById("tableRowCount").textContent = `${count} rows`;
+      document.getElementById("tableData").innerHTML = makeTable(rows);
+    }
+
+    function initTemplates() {
+      const sel = document.getElementById("queryTemplates");
+      QUERY_TEMPLATES.forEach((q, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = q.name;
+        sel.appendChild(opt);
+      });
+      document.getElementById("loadTemplateBtn").addEventListener("click", () => {
+        const idx = Number(sel.value || 0);
+        document.getElementById("sqlInput").value = QUERY_TEMPLATES[idx].sql;
+      });
+      document.getElementById("runQueryBtn").addEventListener("click", runSql);
+      document.getElementById("sqlInput").value = QUERY_TEMPLATES[2].sql;
+    }
+
+    function runSql() {
+      const sql = document.getElementById("sqlInput").value.trim();
+      if (!sql) {
+        setStatus("Enter SQL to execute.", false);
+        return;
+      }
+      try {
+        const started = performance.now();
+        const resultSets = db.exec(sql);
+        const elapsed = Math.round((performance.now() - started) * 100) / 100;
+
+        if (!resultSets.length) {
+          document.getElementById("queryResults").innerHTML = "<div class='meta' style='padding:8px'>Statement executed successfully. No result rows.</div>";
+          document.getElementById("queryMeta").textContent = "No tabular result";
+          setStatus(`Executed in ${elapsed} ms`, true);
+          return;
+        }
+
+        const set = resultSets[0];
+        const rows = set.values.map((vals) => {
+          const obj = {};
+          set.columns.forEach((c, i) => { obj[c] = vals[i]; });
+          return obj;
+        });
+        document.getElementById("queryResults").innerHTML = makeTable(rows);
+        document.getElementById("queryMeta").textContent = `${rows.length} rows returned`;
+        setStatus(`Executed in ${elapsed} ms`, true);
+      } catch (err) {
+        setStatus(String(err.message || err), false);
+      }
+    }
+
+    function initViews() {
+      document.getElementById("createViewBtn").addEventListener("click", createView);
+      document.getElementById("refreshViewsBtn").addEventListener("click", renderViewsList);
+      document.getElementById("deleteViewBtn").addEventListener("click", deleteSelectedView);
+      initViewTemplates();
+      document.getElementById("loadViewTemplateBtn").addEventListener("click", loadViewTemplate);
+      renderViewsList();
+    }
+
+    function initViewTemplates() {
+      const sel = document.getElementById("viewTemplateSelect");
+      sel.innerHTML = "";
+      VIEW_TEMPLATES.forEach((tpl, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = tpl.name;
+        sel.appendChild(opt);
+      });
+      loadViewTemplate();
+    }
+
+    function loadViewTemplate() {
+      const sel = document.getElementById("viewTemplateSelect");
+      const idx = Number(sel.value || 0);
+      const tpl = VIEW_TEMPLATES[idx];
+      if (!tpl) return;
+      document.getElementById("viewNameInput").value = tpl.viewName;
+      document.getElementById("viewSqlInput").value = tpl.sql;
+      setViewStatus(`Loaded template: ${tpl.name}`, true);
+    }
+
+    function createView() {
+      const name = (document.getElementById("viewNameInput").value || "").trim();
+      const sql = (document.getElementById("viewSqlInput").value || "").trim();
+      if (!name) {
+        setViewStatus("Please enter a view name.", false);
+        return;
+      }
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        setViewStatus("View name can use letters, numbers, and underscores only.", false);
+        return;
+      }
+      if (!sql.toLowerCase().startsWith("select")) {
+        setViewStatus("View SQL must start with SELECT.", false);
+        return;
+      }
+      try {
+        db.run(`CREATE VIEW IF NOT EXISTS ${name} AS ${sql}`);
+        setViewStatus(`View '${name}' created or already exists.`, true);
+        renderViewsList();
+      } catch (err) {
+        setViewStatus(String(err.message || err), false);
+      }
+    }
+
+    function deleteSelectedView() {
+      if (!selectedViewName) {
+        setViewStatus("Select a view first.", false);
+        return;
+      }
+      const ok = window.confirm(`Delete view '${selectedViewName}'? This cannot be undone.`);
+      if (!ok) return;
+      try {
+        db.run(`DROP VIEW IF EXISTS ${selectedViewName}`);
+        setViewStatus(`Deleted view '${selectedViewName}'.`, true);
+        selectedViewName = null;
+        renderViewsList();
+      } catch (err) {
+        setViewStatus(String(err.message || err), false);
+      }
+    }
+
+    function renderViewsList() {
+      const rows = query(`
+        SELECT name, sql
+        FROM sqlite_master
+        WHERE type = 'view'
+        ORDER BY name;
+      `);
+      const container = document.getElementById("viewsList");
+      container.innerHTML = "";
+      if (!rows.length) {
+        container.innerHTML = "<div class='meta'>No views yet. Create one above.</div>";
+        document.getElementById("viewPreview").innerHTML = "<div class='meta' style='padding:8px'>Select a view to preview data.</div>";
+        document.getElementById("selectedViewMeta").textContent = "";
+        return;
+      }
+
+      rows.forEach((v, i) => {
+        const item = document.createElement("div");
+        item.className = "view-item";
+        item.textContent = v.name;
+        item.classList.toggle("active", v.name === selectedViewName);
+        item.addEventListener("click", () => {
+          selectedViewName = v.name;
+          renderViewsList();
+          previewView(v.name, v.sql || "");
+        });
+        container.appendChild(item);
+        if (i === 0 && !selectedViewName) selectedViewName = v.name;
+      });
+
+      const active = rows.find((r) => r.name === selectedViewName) || rows[0];
+      selectedViewName = active.name;
+      previewView(active.name, active.sql || "");
+    }
+
+    function previewView(name, sqlDef) {
+      try {
+        const rows = query(`SELECT * FROM ${name} LIMIT 100;`);
+        document.getElementById("viewPreview").innerHTML = makeTable(rows);
+        const cleaned = (sqlDef || "").replace(/\s+/g, " ").trim();
+        document.getElementById("selectedViewMeta").textContent = cleaned || `View: ${name}`;
+      } catch (err) {
+        document.getElementById("viewPreview").innerHTML = `<div class='meta' style='padding:8px'>Unable to preview view: ${escapeHtml(String(err.message || err))}</div>`;
+      }
+    }
+
+    function setStatus(msg, ok) {
+      const el = document.getElementById("queryStatus");
+      el.className = `status ${ok ? "ok" : "err"}`;
+      el.textContent = msg;
+    }
+
+    function setViewStatus(msg, ok) {
+      const el = document.getElementById("viewStatus");
+      el.className = `status ${ok ? "ok" : "err"}`;
+      el.textContent = msg;
+    }
+
+    function makeTable(rows) {
+      if (!rows.length) return "<div class='meta' style='padding:8px'>No rows.</div>";
+      const headers = Object.keys(rows[0]);
+      const th = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
+      const body = rows.map((r) => {
+        const tds = headers.map((h) => `<td>${escapeHtml(formatValue(r[h]))}</td>`).join("");
+        return `<tr>${tds}</tr>`;
+      }).join("");
+      return `<table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    function formatValue(v) {
+      if (v === null || v === undefined) return "NULL";
+      if (typeof v === "object") return JSON.stringify(v);
+      return String(v);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    boot().catch((err) => {
+      document.body.innerHTML = `<pre style="color:#ff9a9a;padding:20px;">Failed to start: ${escapeHtml(String(err))}</pre>`;
+    });
+  </script>
+</body>
+</html>
