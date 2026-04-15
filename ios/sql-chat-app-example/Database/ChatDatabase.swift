@@ -1,33 +1,81 @@
 import Foundation
 import SQLite3
 
+// MARK: - Overview
+//
+// ``ChatDatabase`` is the single persistence layer for the sample chat app. It:
+// - Opens SQLite (file in Documents for the real app, or ``Configuration/inMemory`` for tests).
+// - Applies the bundled ``schema.sql`` DDL once per connection.
+// - Seeds deterministic demo rows when `app_user` is empty.
+// - Exposes small, typed structs (`ChatListItem`, `ContactRow`, …) so SwiftUI view models
+//   stay free of raw SQL and `OpaquePointer` handling.
+//
+// **Threading:** All methods are synchronous and should be called from the main actor
+// (view models are `@MainActor`). SQLite is compiled with thread-safe options; this app
+// does not share one connection across background queues.
+//
+// **Testing:** Use ``makeForTesting()`` to obtain an isolated in-memory database with the
+// same schema and seed as production, without mutating ``shared`` or on-disk files.
+
+/// SQLite access for chat schema: users, chats, messages, contacts, reactions.
 final class ChatDatabase {
-    static let shared = ChatDatabase()
+    // MARK: - Singleton & test instances
+
+    /// Production database in the app Documents directory (recreated on each launch in DEBUG
+    /// so schema edits are picked up quickly — remove that line for a stable store).
+    static let shared = ChatDatabase(configuration: .persistent)
+
+    /// Where and how the SQLite file (or memory) is opened.
+    enum Configuration {
+        /// Default app storage under Documents; wipes file on init in DEBUG builds.
+        case persistent
+        /// Ephemeral `:memory:` database — use for unit tests via ``makeForTesting()``.
+        case inMemory
+    }
+
+    /// Shared singleton uses ``Configuration/persistent``; tests should call this instead.
+    static func makeForTesting(configuration: Configuration = .inMemory) -> ChatDatabase {
+        ChatDatabase(configuration: configuration)
+    }
 
     private var db: OpaquePointer?
 
-    private init() {
-        let path = FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("chat.sqlite")
-            .path
+    private init(configuration: Configuration) {
+        switch configuration {
+        case .persistent:
+            let path = FileManager.default
+                .urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("chat.sqlite")
+                .path
 
-        // Remove old DB to pick up schema changes during development
-        try? FileManager.default.removeItem(atPath: path)
+            #if DEBUG
+            try? FileManager.default.removeItem(atPath: path)
+            #endif
 
-        guard sqlite3_open(path, &db) == SQLITE_OK else {
-            fatalError("Unable to open database at \(path)")
+            guard sqlite3_open(path, &db) == SQLITE_OK else {
+                fatalError("Unable to open database at \(path)")
+            }
+
+        case .inMemory:
+            guard sqlite3_open(":memory:", &db) == SQLITE_OK else {
+                fatalError("Unable to open in-memory database")
+            }
         }
+
+        // WAL improves read/write concurrency for the single-writer pattern used here.
         sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nil, nil, nil)
+        // Enforce FK constraints — SQLite leaves them off unless explicitly enabled.
         sqlite3_exec(db, "PRAGMA foreign_keys=ON;", nil, nil, nil)
+
         createTables()
         seedIfNeeded()
     }
 
     deinit { sqlite3_close(db) }
 
-    // MARK: - Schema
+    // MARK: - Schema lifecycle
 
+    /// Loads `schema.sql` from the app bundle and executes the full DDL script.
     private func createTables() {
         guard let url = Bundle.main.url(forResource: "schema", withExtension: "sql"),
               let sql = try? String(contentsOf: url, encoding: .utf8) else {
@@ -36,6 +84,7 @@ final class ChatDatabase {
         exec(sql)
     }
 
+    /// Inserts bundled demo users, contacts, chats, and messages when the DB is empty.
     private func seedIfNeeded() {
         let count = queryScalar("SELECT COUNT(*) FROM app_user")
         guard count == 0 else { return }
@@ -111,6 +160,7 @@ final class ChatDatabase {
 
     // MARK: - Chat list
 
+    /// One row for the chats list UI: resolved title, preview text, and activity timestamp string.
     struct ChatListItem {
         let chatId: Int64
         let name: String
@@ -119,6 +169,7 @@ final class ChatDatabase {
         let ctype: String
     }
 
+    /// Chats the user participates in, ordered by latest message time (subqueries for preview).
     func fetchChatList(userId: Int64) -> [ChatListItem] {
         let sql = """
             SELECT c.chat_id, c.ctype,
@@ -158,6 +209,7 @@ final class ChatDatabase {
 
     // MARK: - Contacts
 
+    /// Flat row for contact list cells — joins `contact` to `app_user` for the other party.
     struct ContactRow {
         let userId: Int64
         let displayName: String
@@ -174,6 +226,7 @@ final class ChatDatabase {
         fetchContactsSorted(userId: userId, sortOrder: .name)
     }
 
+    /// Same as ``fetchContacts(userId:)`` but with explicit sort (favorites first when sorting by name).
     func fetchContactsSorted(userId: Int64, sortOrder: ContactSortOrder) -> [ContactRow] {
         let orderClause: String
         switch sortOrder {
@@ -215,6 +268,7 @@ final class ChatDatabase {
         return rows
     }
 
+    /// Case-sensitive `LIKE` search across display name, username, and optional nickname.
     func searchContacts(userId: Int64, query: String) -> [ContactRow] {
         let sql = """
             SELECT au.user_id, au.display_name, au.username, au.phone,
@@ -250,8 +304,9 @@ final class ChatDatabase {
         return rows
     }
 
-    // MARK: - Find or create direct chat
+    // MARK: - Direct chats
 
+    /// Returns existing direct chat between two users, or inserts `chat` + two `chat_participant` rows.
     func findOrCreateDirectChat(currentUserId: Int64, contactUserId: Int64) -> Int64 {
         let findSQL = """
             SELECT c.chat_id
@@ -283,13 +338,14 @@ final class ChatDatabase {
         return chatId
     }
 
-    // MARK: - Insert new contact
+    // MARK: - Insert contact
 
     private static let avatarColors = [
         "#e74c3c", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c",
         "#f39c12", "#3498db", "#e91e63", "#ff5722", "#8bc34a", "#00bcd4"
     ]
 
+    /// Creates a new `app_user` and a `contact` row owned by `currentUserId`. Usernames are escaped for SQL literals.
     func insertUserAndContact(currentUserId: Int64, username: String, displayName: String, phone: String?) -> Int64 {
         let color = Self.avatarColors.randomElement() ?? "#4361ee"
         let safeUser = username.replacingOccurrences(of: "'", with: "''")
@@ -316,6 +372,7 @@ final class ChatDatabase {
 
     // MARK: - Messages
 
+    /// Denormalized message for the transcript: text, system, or media rows joined in one query.
     struct MessageRow {
         let messageId: Int64
         let senderId: Int64
@@ -366,6 +423,7 @@ final class ChatDatabase {
 
     // MARK: - Search chats
 
+    /// Full-text-style filter on resolved chat title for the current user's memberships.
     func searchChats(userId: Int64, query: String) -> [ChatListItem] {
         let sql = """
             SELECT c.chat_id, c.ctype,
@@ -430,6 +488,7 @@ final class ChatDatabase {
 
     // MARK: - Send message
 
+    /// Inserts a `message` row plus matching `text_message` body using a prepared statement for the body.
     func sendTextMessage(chatId: Int64, senderId: Int64, body: String) {
         exec("INSERT INTO message (chat_id, sender_id, mtype) VALUES (\(chatId), \(senderId), 'text')")
         let msgId = queryScalar("SELECT last_insert_rowid()")
@@ -443,8 +502,9 @@ final class ChatDatabase {
         }
     }
 
-    // MARK: - Chat info
+    // MARK: - Chat metadata
 
+    /// Resolves navigation title: peer display name for direct chats, `title` for groups/channels.
     func chatName(chatId: Int64, currentUserId: Int64) -> String {
         let sql = """
             SELECT CASE WHEN c.ctype='direct' THEN
@@ -471,14 +531,16 @@ final class ChatDatabase {
         return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
     }
 
-    // MARK: - Helpers
+    // MARK: - SQLite helpers
 
+    /// Runs arbitrary SQL (DDL batches, simple inserts). Logs `sqlite3_errmsg` on failure.
     private func exec(_ sql: String) {
         var err: UnsafeMutablePointer<CChar>?
         sqlite3_exec(db, sql, nil, nil, &err)
         if let err { debugPrint("SQL error:", String(cString: err)); sqlite3_free(err) }
     }
 
+    /// First column of the first row as `Int64` — used for `COUNT(*)` and `last_insert_rowid()`.
     private func queryScalar(_ sql: String) -> Int64 {
         var stmt: OpaquePointer?
         defer { sqlite3_finalize(stmt) }

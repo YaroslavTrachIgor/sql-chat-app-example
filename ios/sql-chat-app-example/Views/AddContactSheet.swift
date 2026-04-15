@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct AddContactSheet: View {
@@ -5,12 +6,10 @@ struct AddContactSheet: View {
 
     var onAdded: () -> Void = {}
 
-    @State private var firstName = ""
-    @State private var lastName = ""
-    @State private var phone = ""
-    @State private var showError = false
+    @State private var viewModel = AddContactViewModel()
 
     var body: some View {
+        @Bindable var vm = viewModel
         NavigationStack {
             Form {
                 Section {
@@ -30,19 +29,19 @@ struct AddContactSheet: View {
                 }
 
                 Section {
-                    TextField("First Name", text: $firstName)
+                    TextField("First Name", text: $vm.firstName)
                         .textContentType(.givenName)
-                    TextField("Last Name", text: $lastName)
+                    TextField("Last Name", text: $vm.lastName)
                         .textContentType(.familyName)
                 }
 
                 Section {
-                    TextField("Phone Number", text: $phone)
+                    TextField("Phone Number", text: $vm.phone)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
                 }
 
-                if showError {
+                if vm.showError {
                     Section {
                         Label("Please enter at least a first name.", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.red)
@@ -58,31 +57,14 @@ struct AddContactSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { addContact() }
                         .bold()
-                        .disabled(firstName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(!vm.canSave)
                 }
             }
         }
     }
 
     private func addContact() {
-        let first = firstName.trimmingCharacters(in: .whitespaces)
-        guard !first.isEmpty else {
-            showError = true
-            return
-        }
-
-        let last = lastName.trimmingCharacters(in: .whitespaces)
-        let displayName = last.isEmpty ? first : "\(first) \(last)"
-        let username = displayName.lowercased().replacingOccurrences(of: " ", with: ".")
-        let phoneVal = phone.trimmingCharacters(in: .whitespaces)
-
-        let userId = ChatDatabase.shared.insertUserAndContact(
-            currentUserId: 1,
-            username: username,
-            displayName: displayName,
-            phone: phoneVal.isEmpty ? nil : phoneVal
-        )
-
+        let userId = viewModel.saveContact()
         if userId > 0 {
             onAdded()
             dismiss()

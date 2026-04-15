@@ -1,54 +1,52 @@
+import Observation
 import SwiftUI
 
 struct SearchView: View {
-    @State private var searchQuery = ""
-    @State private var chatResults: [ChatItem] = []
-    @State private var contactResults: [ContactItem] = []
-    @State private var navigateToChatId: Int64?
-
-    private let currentUserId: Int64 = 1
+    @State private var viewModel = SearchViewModel()
 
     var body: some View {
+        @Bindable var vm = viewModel
         NavigationStack {
             List {
-                if searchQuery.isEmpty {
+                if vm.searchQuery.isEmpty {
                     recentSection
                 } else {
-                    if !contactResults.isEmpty {
+                    if !vm.contactResults.isEmpty {
                         Section("Contacts") {
-                            ForEach(contactResults) { contact in
+                            ForEach(vm.contactResults) { contact in
                                 contactResultRow(contact)
                             }
                         }
                     }
-                    if !chatResults.isEmpty {
+                    if !vm.chatResults.isEmpty {
                         Section("Chats") {
-                            ForEach(chatResults) { chat in
+                            ForEach(vm.chatResults) { chat in
                                 chatResultRow(chat)
                             }
                         }
                     }
-                    if contactResults.isEmpty && chatResults.isEmpty {
-                        ContentUnavailableView.search(text: searchQuery)
+                    if vm.contactResults.isEmpty && vm.chatResults.isEmpty {
+                        ContentUnavailableView.search(text: vm.searchQuery)
                     }
                 }
             }
             .listStyle(.plain)
             .navigationTitle("Search")
-            .searchable(text: $searchQuery, prompt: "Search chats and contacts")
-            .onChange(of: searchQuery) { performSearch() }
-            .navigationDestination(item: $navigateToChatId) { chatId in
-                ChatDetailView(chatId: chatId, currentUserId: currentUserId)
+            .searchable(text: $vm.searchQuery, prompt: "Search chats and contacts")
+            .onChange(of: viewModel.searchQuery) { _, _ in
+                viewModel.performSearch()
+            }
+            .navigationDestination(item: $vm.navigateToChatId) { chatId in
+                ChatDetailView(chatId: chatId, currentUserId: viewModel.currentUserId)
             }
         }
     }
 
     private var recentSection: some View {
         Section("Recent Chats") {
-            let recentChats = ChatDatabase.shared.fetchChatList(userId: currentUserId).prefix(5)
-            ForEach(Array(recentChats.enumerated()), id: \.offset) { _, item in
+            ForEach(viewModel.recentChatListItems, id: \.chatId) { item in
                 Button {
-                    navigateToChatId = item.chatId
+                    viewModel.navigateToChatId = item.chatId
                 } label: {
                     HStack(spacing: 12) {
                         let initials = item.name.split(separator: " ").prefix(2)
@@ -73,11 +71,8 @@ struct SearchView: View {
 
     private func contactResultRow(_ contact: ContactItem) -> some View {
         Button {
-            let chatId = ChatDatabase.shared.findOrCreateDirectChat(
-                currentUserId: currentUserId,
-                contactUserId: contact.id
-            )
-            navigateToChatId = chatId
+            let chatId = viewModel.openDirectChat(contactUserId: contact.id)
+            viewModel.navigateToChatId = chatId
         } label: {
             HStack(spacing: 12) {
                 Circle()
@@ -102,7 +97,7 @@ struct SearchView: View {
 
     private func chatResultRow(_ chat: ChatItem) -> some View {
         Button {
-            navigateToChatId = chat.id
+            viewModel.navigateToChatId = chat.id
         } label: {
             HStack(spacing: 12) {
                 avatarCircle(chat.initials, size: 36)
@@ -116,40 +111,6 @@ struct SearchView: View {
                         .lineLimit(1)
                 }
             }
-        }
-    }
-
-    private func performSearch() {
-        guard !searchQuery.isEmpty else {
-            chatResults = []
-            contactResults = []
-            return
-        }
-
-        let contactRows = ChatDatabase.shared.searchContacts(userId: currentUserId, query: searchQuery)
-        contactResults = contactRows.map {
-            ContactItem(
-                id: $0.userId,
-                displayName: $0.displayName,
-                username: $0.username,
-                phone: $0.phone,
-                avatarColor: Color(hex: $0.avatarColor),
-                isOnline: $0.isOnline,
-                lastSeenAt: $0.lastSeenAt,
-                nickname: $0.nickname,
-                isFavorite: $0.isFavorite
-            )
-        }
-
-        let chatRows = ChatDatabase.shared.searchChats(userId: currentUserId, query: searchQuery)
-        chatResults = chatRows.map {
-            ChatItem(
-                id: $0.chatId,
-                name: $0.name,
-                lastMessage: $0.lastMessage ?? "No messages yet",
-                lastActivity: "",
-                ctype: $0.ctype
-            )
         }
     }
 }

@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct ChatDetailView: View {
@@ -5,33 +6,56 @@ struct ChatDetailView: View {
     let currentUserId: Int64
     var onSend: () -> Void = {}
 
-    @State private var messages: [Message] = []
-    @State private var chatName: String = ""
-    @State private var memberCount: Int = 0
-    @State private var draft: String = ""
+    @State private var viewModel: ChatDetailViewModel
 
-    var body: some View {
-        VStack(spacing: 0) {
-            messageList
-            composeBar
-        }
-        .navigationTitle(chatName)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { toolbar }
-        .onAppear { loadData() }
-        .onChange(of: chatId) { loadData() }
+    init(chatId: Int64, currentUserId: Int64, onSend: @escaping () -> Void = {}) {
+        self.chatId = chatId
+        self.currentUserId = currentUserId
+        self.onSend = onSend
+        _viewModel = State(wrappedValue: ChatDetailViewModel(chatId: chatId, currentUserId: currentUserId, onSend: onSend))
     }
 
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            VStack(spacing: 1) {
-                Text(chatName)
-                    .font(.headline)
-                Text(memberCount > 2 ? "\(memberCount) members" : "Direct message")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    var body: some View {
+        @Bindable var vm = viewModel
+        VStack(spacing: 0) {
+            messageList
+            HStack(spacing: 10) {
+                TextField("Message", text: $vm.draft)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(Capsule())
+                    .onSubmit { viewModel.sendDraft() }
+
+                Button(action: { viewModel.sendDraft() }) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                }
+                .disabled(vm.draft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.systemGroupedBackground))
+        }
+        .navigationTitle(vm.chatName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(vm.chatName)
+                        .font(.headline)
+                    Text(vm.memberCount > 2 ? "\(vm.memberCount) members" : "Direct message")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .onAppear {
+            viewModel.apply(chatId: chatId)
+        }
+        .onChange(of: chatId) { _, newId in
+            viewModel.apply(chatId: newId)
         }
     }
 
@@ -39,7 +63,7 @@ struct ChatDetailView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(messages) { msg in
+                    ForEach(viewModel.messages) { msg in
                         messageView(msg)
                             .id(msg.id)
                     }
@@ -47,8 +71,8 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            .onChange(of: messages.count) {
-                if let last = messages.last {
+            .onChange(of: viewModel.messages.count) {
+                if let last = viewModel.messages.last {
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
@@ -133,59 +157,5 @@ struct ChatDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
-    }
-
-    private var composeBar: some View {
-        HStack(spacing: 10) {
-            TextField("Message", text: $draft)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(Capsule())
-                .onSubmit { send() }
-
-            Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-            }
-            .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
-    }
-
-    private func send() {
-        let text = draft.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        ChatDatabase.shared.sendTextMessage(chatId: chatId, senderId: currentUserId, body: text)
-        draft = ""
-        loadData()
-        onSend()
-    }
-
-    private func loadData() {
-        chatName = ChatDatabase.shared.chatName(chatId: chatId, currentUserId: currentUserId)
-        memberCount = ChatDatabase.shared.participantCount(chatId: chatId)
-        let rows = ChatDatabase.shared.fetchMessages(chatId: chatId)
-        messages = rows.map { r in
-            var msg = Message(
-                id: r.messageId,
-                senderId: r.senderId,
-                senderName: r.senderName,
-                mtype: r.mtype,
-                sentAt: r.sentAt,
-                body: r.body,
-                eventType: r.eventType,
-                payload: r.payload,
-                mediaUrl: r.mediaUrl,
-                mediaKind: r.mediaKind
-            )
-            msg.reactions = ChatDatabase.shared.fetchReactions(messageId: r.messageId).map {
-                Reaction(emoji: $0.emoji, count: $0.count)
-            }
-            return msg
-        }
     }
 }

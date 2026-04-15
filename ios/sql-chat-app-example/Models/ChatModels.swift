@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 
+enum ContactSortOrder: String, CaseIterable {
+    case name = "Name"
+    case lastSeen = "Last Seen"
+    case recentlyAdded = "Recently Added"
+}
+
 struct ChatItem: Identifiable, Hashable {
     let id: Int64
     let name: String
@@ -53,6 +59,7 @@ struct ContactItem: Identifiable {
 struct Message: Identifiable {
     let id: Int64
     let senderId: Int64
+    let currentUserId: Int64
     let senderName: String
     let mtype: String
     let sentAt: String
@@ -63,7 +70,7 @@ struct Message: Identifiable {
     let mediaKind: String?
     var reactions: [Reaction] = []
 
-    var isMine: Bool { senderId == 1 }
+    var isMine: Bool { senderId == currentUserId }
 
     var displayTime: String {
         guard let date = ISO8601Lite.parse(sentAt) else { return sentAt }
@@ -89,6 +96,22 @@ enum ISO8601Lite {
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return fmt.date(from: s)
+    }
+}
+
+extension ChatDatabase.ContactRow {
+    func makeContactItem() -> ContactItem {
+        ContactItem(
+            id: userId,
+            displayName: displayName,
+            username: username,
+            phone: phone,
+            avatarColor: Color(hex: avatarColor),
+            isOnline: isOnline,
+            lastSeenAt: lastSeenAt,
+            nickname: nickname,
+            isFavorite: isFavorite
+        )
     }
 }
 
