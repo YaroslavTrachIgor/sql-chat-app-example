@@ -1,12 +1,20 @@
 -- ============================================================
--- Chat Application – Sample seed data
+-- Chat Application - Sample seed data
 -- ============================================================
 -- Run AFTER schema.sql
+--
+-- Purpose of this file:
+-- - Populate all parent tables first, then dependent child tables.
+-- - Demonstrate realistic relationship chains (user -> chat membership -> message -> reactions/reads).
+-- - Provide rows that make join-heavy query examples meaningful.
 -- ============================================================
 
 BEGIN;
 
--- Users (expanded roster for contacts demo)
+-- Users (root rows for many downstream foreign keys)
+-- Impact:
+-- - Every insert in contact/chat_participant/message/reaction/read_receipt/call
+--   depends on app_user.user_id existing first.
 INSERT INTO app_user (username, display_name, email, phone, bio, avatar_color, is_online, last_seen_at) VALUES
     ('alice',     'Alice Johnson',   'alice@example.com',   '+1-555-0101', 'Product designer',           '#4361ee', TRUE,  now()),
     ('bob',       'Bob Smith',       'bob@example.com',     '+1-555-0102', 'Frontend engineer',          '#e74c3c', FALSE, now() - INTERVAL '15 minutes'),
@@ -22,6 +30,9 @@ INSERT INTO app_user (username, display_name, email, phone, bio, avatar_color, i
     ('lucas',     'Lucas Andersen',  'lucas@example.com',   '+1-555-0112', 'Fullstack dev',              '#00bcd4', FALSE, now() - INTERVAL '4 days');
 
 -- Alice's contacts (user_id = 1)
+-- Relationship: contact.owner_id -> app_user.user_id
+-- Relationship: contact.contact_id -> app_user.user_id
+-- Effect: "Alice's contact list" screens resolve these rows by joining to app_user.
 INSERT INTO contact (owner_id, contact_id, nickname, is_favorite) VALUES
     (1, 2,  NULL,        TRUE),
     (1, 3,  NULL,        FALSE),
@@ -36,22 +47,35 @@ INSERT INTO contact (owner_id, contact_id, nickname, is_favorite) VALUES
     (1, 12, NULL,        FALSE);
 
 -- Mutual contacts
+-- These rows intentionally show directed edges in both directions for selected pairs.
+-- Effect: if one direction is missing, one user may see the other as contact while reverse is not true.
 INSERT INTO contact (owner_id, contact_id) VALUES
     (2, 1), (3, 1), (4, 1), (5, 1), (7, 1),
     (2, 3), (3, 4), (4, 5);
 
 -- Direct chat between Alice and Bob
+-- Relationship: chat.created_by -> app_user.user_id
+-- This creates chat_id = 1 (in an empty database using this seed once).
 INSERT INTO chat (ctype, title, created_by) VALUES
     ('direct', NULL, 1);
 
+-- Membership bridge rows for chat_id=1
+-- Relationship: chat_participant.chat_id -> chat.chat_id
+-- Relationship: chat_participant.user_id -> app_user.user_id
+-- Effect: only members should be allowed to read/send messages in this chat.
 INSERT INTO chat_participant (chat_id, user_id, role) VALUES
     (1, 1, 'member'),
     (1, 2, 'member');
 
 -- Group chat
+-- This creates chat_id = 2.
 INSERT INTO chat (ctype, title, created_by) VALUES
     ('group', 'Project Alpha', 1);
 
+-- Group membership rows for chat_id=2
+-- Effects:
+-- - unread calculations are per participant
+-- - aggregate chat metrics (participant counts) depend on these rows
 INSERT INTO chat_participant (chat_id, user_id, role) VALUES
     (2, 1, 'admin'),
     (2, 2, 'member'),
@@ -59,36 +83,51 @@ INSERT INTO chat_participant (chat_id, user_id, role) VALUES
     (2, 4, 'member');
 
 -- Direct chat between Alice and Charlie
+-- This creates chat_id = 3.
 INSERT INTO chat (ctype, title, created_by) VALUES
     ('direct', NULL, 1);
 
+-- Membership rows for chat_id=3
 INSERT INTO chat_participant (chat_id, user_id, role) VALUES
     (3, 1, 'member'),
     (3, 3, 'member');
 
 -- Messages in direct chat (Alice <-> Bob)
+-- Relationship: message.chat_id -> chat.chat_id
+-- Relationship: message.sender_id -> app_user.user_id
+-- Effect: these are parent rows for text_message/reaction/read_receipt/message_status.
 INSERT INTO message (chat_id, sender_id, mtype, sent_at) VALUES
     (1, 1, 'text', now() - INTERVAL '2 hours'),
     (1, 2, 'text', now() - INTERVAL '1 hour 55 minutes'),
     (1, 1, 'text', now() - INTERVAL '1 hour 50 minutes');
 
+-- text_message extends message 1:1 for mtype='text' payloads.
+-- Relationship: text_message.message_id -> message.message_id
 INSERT INTO text_message (message_id, body) VALUES
     (1, 'Hey Bob! How is the design coming along?'),
     (2, 'Almost done — just finalising the color palette.'),
     (3, 'Nice, send me a screenshot when you can.');
 
 -- Messages in group chat
+-- Here we create mixed message types (text, media, system) to demonstrate polymorphism.
 INSERT INTO message (chat_id, sender_id, mtype, sent_at) VALUES
     (2, 1, 'text',   now() - INTERVAL '30 minutes'),
     (2, 3, 'text',   now() - INTERVAL '28 minutes'),
     (2, 2, 'media',  now() - INTERVAL '25 minutes'),
     (2, 1, 'system', now() - INTERVAL '20 minutes');
 
+-- Text payload rows only for message ids 4 and 5.
 INSERT INTO text_message (message_id, body) VALUES
     (4, 'Team standup: what is everyone working on today?'),
     (5, 'Finishing up the API integration tests.');
 
 -- Media message (an image)
+-- media is independent metadata; media_message links it to a specific message.
+-- Relationships:
+-- - media_message.message_id -> message.message_id
+-- - media_message.media_id -> media.media_id
+-- - image_media.media_id -> media.media_id
+-- Effect: message 6 now resolves to image metadata through two joins.
 INSERT INTO media (kind, mime_type, bytes, url) VALUES
     ('image', 'image/png', 204800, 'https://cdn.example.com/uploads/mockup-v3.png');
 
@@ -96,6 +135,8 @@ INSERT INTO media_message (message_id, media_id) VALUES (6, 1);
 INSERT INTO image_media (media_id, width, height) VALUES (1, 1920, 1080);
 
 -- System message
+-- Relationship: system_message.message_id -> message.message_id
+-- Effect: message 7 can be rendered as a typed event with JSON payload.
 INSERT INTO system_message (message_id, event_type, payload) VALUES
     (7, 'member_joined', '{"user_id": 4, "display_name": "Diana Ruiz"}');
 
@@ -107,6 +148,9 @@ INSERT INTO text_message (message_id, body) VALUES
     (8, 'Hey Alice, want to review the PR together?');
 
 -- Reactions
+-- Relationship: reaction.message_id -> message.message_id
+-- Relationship: reaction.user_id -> app_user.user_id
+-- Effect: UI reaction chips and counts are computed from these rows.
 INSERT INTO reaction (message_id, user_id, emoji) VALUES
     (1, 2, '👍'),
     (4, 2, '🔥'),
@@ -114,6 +158,9 @@ INSERT INTO reaction (message_id, user_id, emoji) VALUES
     (5, 1, '💯');
 
 -- Read receipts
+-- Relationship: read_receipt.message_id -> message.message_id
+-- Relationship: read_receipt.user_id -> app_user.user_id
+-- Effect: unread counters drop when a row exists for (message_id, user_id).
 INSERT INTO read_receipt (message_id, user_id) VALUES
     (1, 2),
     (2, 1),
@@ -123,6 +170,9 @@ INSERT INTO read_receipt (message_id, user_id) VALUES
     (4, 4);
 
 -- Message delivery statuses
+-- Relationship: message_status.message_id -> message.message_id
+-- Relationship: message_status.user_id -> app_user.user_id
+-- Effect: clients can show sent/delivered/read state per recipient.
 INSERT INTO message_status (message_id, user_id, status) VALUES
     (1, 2, 'read'),
     (2, 1, 'read'),
@@ -133,9 +183,16 @@ INSERT INTO message_status (message_id, user_id, status) VALUES
     (8, 1, 'delivered');
 
 -- A sample call
+-- Relationship: call.chat_id -> chat.chat_id
+-- Relationship: call.started_by -> app_user.user_id
+-- Effect: call timeline entries are scoped to a chat thread.
 INSERT INTO call (chat_id, started_by, ctype, status, started_at, ended_at) VALUES
     (1, 2, 'voice', 'ended', now() - INTERVAL '3 hours', now() - INTERVAL '2 hours 45 minutes');
 
+-- Join/leave rows for call attendance
+-- Relationship: call_participant.call_id -> call.call_id
+-- Relationship: call_participant.user_id -> app_user.user_id
+-- Effect: call analytics (duration, attendance) derive from these rows.
 INSERT INTO call_participant (call_id, user_id, joined_at, left_at) VALUES
     (1, 2, now() - INTERVAL '3 hours', now() - INTERVAL '2 hours 45 minutes'),
     (1, 1, now() - INTERVAL '2 hours 59 minutes', now() - INTERVAL '2 hours 45 minutes');

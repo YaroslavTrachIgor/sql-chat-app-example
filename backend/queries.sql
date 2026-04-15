@@ -1,8 +1,19 @@
 -- ============================================================
--- Chat Application – Common Queries
+-- Chat Application - Common Queries
 -- ============================================================
+-- Each query below includes relationship notes:
+-- - which foreign keys are traversed
+-- - why each join is present
+-- - how table changes influence the output
 
--- 1. List all chats for a given user with last message preview
+-- 1) List all chats for a given user with last message preview
+-- Relationship path:
+-- chat_participant(user_id, chat_id) -> chat(chat_id)
+-- chat(chat_id) -> message(chat_id) [via LATERAL subquery for latest row]
+-- chat_participant(user_id) -> app_user(user_id) [to resolve direct-chat partner]
+-- Effect:
+-- - New message rows change last_message/last_activity immediately.
+-- - Membership changes in chat_participant alter which chats appear.
 SELECT c.chat_id,
        c.ctype,
        COALESCE(c.title, partner.display_name)  AS chat_name,
@@ -31,7 +42,14 @@ WHERE  cp.user_id = 1  -- :current_user_id
 ORDER  BY last_msg.sent_at DESC NULLS LAST;
 
 
--- 2. Fetch paginated messages for a chat
+-- 2) Fetch paginated messages for a chat
+-- Relationship path:
+-- message(sender_id) -> app_user(user_id)
+-- message(message_id) -> text_message/system_message/media_message
+-- media_message(media_id) -> media(media_id)
+-- Effect:
+-- - Setting message.is_deleted hides rows by filter.
+-- - Adding child rows (text/system/media) enriches projected content columns.
 SELECT m.message_id,
        m.mtype,
        m.sent_at,
@@ -57,7 +75,13 @@ LIMIT  50
 OFFSET 0;  -- :page_offset
 
 
--- 3. Unread message count per chat for a user
+-- 3) Unread message count per chat for a user
+-- Relationship path:
+-- chat_participant(chat_id,user_id) -> message(chat_id)
+-- message(message_id) LEFT JOIN read_receipt(message_id,user_id)
+-- Effect:
+-- - Inserting read_receipt rows decreases unread_count.
+-- - New messages from other senders increase unread_count.
 SELECT cp.chat_id,
        COUNT(m.message_id) AS unread_count
 FROM   chat_participant cp
@@ -71,7 +95,11 @@ WHERE  cp.user_id = 1  -- :current_user_id
 GROUP  BY cp.chat_id;
 
 
--- 4. Reactions summary for a message
+-- 4) Reactions summary for a message
+-- Relationship path:
+-- reaction(message_id,user_id) -> app_user(user_id)
+-- Effect:
+-- - Adding/removing reaction rows changes counts and reacted_by arrays.
 SELECT r.emoji,
        COUNT(*)                        AS count,
        array_agg(au.display_name)      AS reacted_by
@@ -82,7 +110,14 @@ GROUP  BY r.emoji
 ORDER  BY count DESC;
 
 
--- 5. Search messages by text across all chats a user belongs to
+-- 5) Search messages by text across all chats a user belongs to
+-- Relationship path:
+-- chat_participant(user_id,chat_id) -> message(chat_id) -> text_message(message_id)
+-- message(sender_id) -> app_user(user_id)
+-- chat_participant(chat_id) -> chat(chat_id)
+-- Effect:
+-- - Contact with chats is not enough; membership in chat_participant is required.
+-- - Editing text_message.body influences search hits.
 SELECT m.message_id,
        c.chat_id,
        COALESCE(c.title, 'Direct Message') AS chat_name,
@@ -100,7 +135,12 @@ ORDER  BY m.sent_at DESC
 LIMIT  20;
 
 
--- 6. Insert a new text message (typical send flow)
+-- 6) Insert a new text message (typical send flow)
+-- Pattern:
+-- 1) Insert parent row into message (must satisfy FK chat_id/sender_id).
+-- 2) Insert child row into text_message using returned message_id.
+-- Effect:
+-- - This two-step pattern preserves relational integrity for typed message payloads.
 WITH new_msg AS (
     INSERT INTO message (chat_id, sender_id, mtype)
     VALUES (1, 1, 'text')  -- :chat_id, :sender_id
@@ -112,7 +152,12 @@ FROM   new_msg
 RETURNING message_id;
 
 
--- 7. Mark messages as read up to a point
+-- 7) Mark messages as read up to a point
+-- Relationship path:
+-- message(chat_id,sender_id) -> read_receipt(message_id,user_id)
+-- Effect:
+-- - ON CONFLICT protects PK(message_id,user_id) from duplicate inserts.
+-- - Query #3 unread count will drop for affected rows.
 INSERT INTO read_receipt (message_id, user_id)
 SELECT m.message_id, 1  -- :current_user_id
 FROM   message m
@@ -126,7 +171,11 @@ ON CONFLICT (message_id, user_id) DO NOTHING;
 -- Contact queries
 -- ============================================================
 
--- 8. Fetch all contacts for a user (sorted by display name)
+-- 8) Fetch all contacts for a user (sorted by display name)
+-- Relationship path:
+-- contact(owner_id,contact_id) -> app_user(user_id)
+-- Effect:
+-- - contact rows define which user profiles are visible as contacts.
 SELECT au.user_id,
        au.display_name,
        au.username,
@@ -142,7 +191,10 @@ WHERE  c.owner_id = 1  -- :current_user_id
 ORDER  BY c.is_favorite DESC, au.display_name ASC;
 
 
--- 9. Search contacts by name, username, or phone
+-- 9) Search contacts by name, username, or phone
+-- Same relationship path as query 8, with additional text filters.
+-- Effect:
+-- - app_user profile updates (display_name/username/phone) change search matches.
 SELECT au.user_id,
        au.display_name,
        au.username,
@@ -159,7 +211,12 @@ WHERE  c.owner_id = 1  -- :current_user_id
 ORDER  BY au.display_name ASC;
 
 
--- 10. Find or create a direct chat with a contact
+-- 10) Find or create a direct chat with a contact
+-- Relationship path:
+-- chat(chat_id,ctype) + two chat_participant aliases for user pair matching.
+-- Effect:
+-- - Requires BOTH participant rows in the same chat to qualify as existing direct chat.
+-- - If missing, app creates chat row first, then both chat_participant rows.
 SELECT c.chat_id
 FROM   chat c
 JOIN   chat_participant cp1 ON cp1.chat_id = c.chat_id AND cp1.user_id = 1  -- :current_user_id
@@ -171,7 +228,11 @@ WHERE  c.ctype = 'direct';
 -- INSERT INTO chat_participant (chat_id, user_id, role) VALUES (:new_id, 1, 'member'), (:new_id, 2, 'member');
 
 
--- 11. Online contacts
+-- 11) Online contacts
+-- Relationship path:
+-- contact(owner_id,contact_id) -> app_user(user_id), filtered by app_user.is_online.
+-- Effect:
+-- - Presence updates in app_user immediately change this result set.
 SELECT au.user_id, au.display_name, au.avatar_color
 FROM   contact c
 JOIN   app_user au ON au.user_id = c.contact_id
