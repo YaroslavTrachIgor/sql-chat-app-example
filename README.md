@@ -1,8 +1,26 @@
+<div align="center">
+
 # SQL Chat App Example
 
-A fully-modeled chat application database schema with working clients for **Web** and **iOS**, plus a standalone **backend** SQL reference. Every layer speaks the same relational model — the only difference is the dialect (PostgreSQL vs SQLite).
+**A relational chat schema with matching Web and iOS clients, plus a PostgreSQL reference implementation.**
 
-![Entity-Relationship Diagram](docs/erd.png)
+[![Swift](https://img.shields.io/badge/Swift-5.9+-F05138?style=flat&logo=swift&logoColor=white)](https://swift.org/)
+[![SwiftUI](https://img.shields.io/badge/SwiftUI-iOS%2017+-007ACC?style=flat&logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
+[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-DDL-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=flat&logo=javascript&logoColor=black)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![sql.js](https://img.shields.io/badge/sql.js-WASM-000000?style=flat)](https://sql.js.org/)
+[![HTML5](https://img.shields.io/badge/HTML5-client-E34F26?style=flat&logo=html5&logoColor=white)](https://developer.mozilla.org/docs/Web/HTML)
+
+</div>
+
+---
+
+## Overview
+
+This repository models a full-featured chat domain in SQL and ships **three surfaces** that all speak the same relational model: a **browser client** (SQLite in-memory via sql.js), an **iOS app** (SwiftUI + SQLite), and a **backend** folder with PostgreSQL-oriented DDL, seeds, and example queries. PostgreSQL and SQLite differ only in dialect details (enums vs `CHECK` constraints, and the like).
+
+**Clients include** chat threads, messages (text / media / system), reactions, read receipts, **contacts** with search and add-contact flows (Web and iOS), and a shared visual language (dark theme, list + detail layout, bubble styling).
 
 ---
 
@@ -15,19 +33,22 @@ A fully-modeled chat application database schema with working clients for **Web*
 │   ├── seed.sql        # Sample data
 │   └── queries.sql     # Common query patterns
 │
-├── web/                # Browser client (pure SQL via sql.js / WASM)
-│   └── index.html      # Single-file chat UI – open in any browser
+├── web/                # Browser client (sql.js / WASM)
+│   └── index.html      # Single-file UI + SQL console
 │
-├── ios/                # Xcode project (SwiftUI + SQLite)
+├── ios/                # Xcode project (SwiftUI + SQLite, MVVM)
 │   ├── sql-chat-app-example/
 │   │   ├── Database/
-│   │   │   ├── schema.sql          # SQLite DDL
-│   │   │   └── ChatDatabase.swift  # Thin SQLite3 wrapper
+│   │   │   ├── schema.sql
+│   │   │   └── ChatDatabase.swift
 │   │   ├── Models/
 │   │   │   └── ChatModels.swift
+│   │   ├── Services/
+│   │   │   └── ChatDatabaseServing.swift
+│   │   ├── ViewModels/
+│   │   │   └── … (chats, contacts, search, detail, add contact)
 │   │   └── Views/
-│   │       ├── ChatListView.swift
-│   │       └── ChatDetailView.swift
+│   │       └── … (tabs, lists, sheets, chat detail)
 │   └── sql-chat-app-example.xcodeproj/
 │
 └── docs/
@@ -39,13 +60,16 @@ A fully-modeled chat application database schema with working clients for **Web*
 ## Schema overview
 
 | Table | Purpose |
-|---|---|
+| --- | --- |
 | `app_user` | Registered users (username, display name, email) |
+| `contact` | User-to-user contact relationships |
+| `blocked_user` | Blocking between users |
 | `chat` | Conversation container — direct, group, or channel |
 | `chat_participant` | Many-to-many link between users and chats |
 | `message` | Base message row with type discriminator (`text`, `media`, `system`) |
 | `text_message` | Body text for text messages |
 | `system_message` | Event type + JSON payload for system events |
+| `message_status` | Delivery / read-style status per message |
 | `media` | Uploaded file metadata (kind, mime, size, URL) |
 | `media_message` | Links a message to its media |
 | `image_media` | Width / height for images |
@@ -54,9 +78,11 @@ A fully-modeled chat application database schema with working clients for **Web*
 | `file_media` | Original filename for generic files |
 | `reaction` | Emoji reactions on messages |
 | `read_receipt` | Per-user read tracking |
+| `typing_indicator` | Ephemeral typing state |
+| `call` | Voice/video call records |
+| `call_participant` | Participants in a call |
 
-Custom enum types (PostgreSQL): `chat_type`, `message_type`, `media_kind`
-SQLite uses `CHECK` constraints to achieve the same validation.
+PostgreSQL uses custom enum types where noted in `backend/schema.sql` (`chat_type`, `message_type`, `media_kind`, etc.). SQLite mirrors the same invariants with `CHECK` constraints in `ios/sql-chat-app-example/Database/schema.sql`.
 
 ---
 
@@ -66,20 +92,20 @@ SQLite uses `CHECK` constraints to achieve the same validation.
 
 ```bash
 open web/index.html
-# or just double-click the file
+# or double-click the file in Finder
 ```
 
-The page loads **sql.js** (SQLite compiled to WebAssembly), creates all tables in-memory, seeds sample data, and renders a chat UI. There is a built-in **SQL Console** at the bottom to run arbitrary queries against the live database.
+The page loads **sql.js**, creates tables in memory, seeds data, and exposes a **SQL console** for ad hoc queries.
 
 ### iOS
 
 1. Open `ios/sql-chat-app-example.xcodeproj` in Xcode 15+.
-2. Build & run on a simulator or device (iOS 17+).
-3. The app creates a local SQLite database on first launch with the same seed data.
+2. Build and run on a simulator or device (iOS 17+).
+3. On first launch the app creates a local SQLite database with the same conceptual seed data.
 
-> **Note:** Add `schema.sql` to the Xcode target's **Copy Bundle Resources** build phase if it is not already included.
+> **Note:** Ensure `schema.sql` is in the app target’s **Copy Bundle Resources** build phase if it is not already.
 
-**Unit tests from the terminal** (pick a simulator that exists on your Mac; iPhone 17 is the default assumed here for Xcode 26 / iOS 26 runtimes):
+**Run unit tests from the terminal** (adjust the simulator name to one installed on your Mac):
 
 ```bash
 cd ios
@@ -88,61 +114,50 @@ xcodebuild test -scheme sql-chat-app-example \
   -only-testing:sql-chat-app-exampleTests
 ```
 
-To see exact device strings: `xcrun simctl list devices available`.
+List simulators: `xcrun simctl list devices available`.
 
 ### Backend (PostgreSQL)
 
 ```bash
-# Create a database
 createdb chatapp
-
-# Apply schema + seed data
 psql chatapp -f backend/schema.sql
 psql chatapp -f backend/seed.sql
-
-# Try out queries
 psql chatapp -f backend/queries.sql
 ```
 
 ---
 
-## DataGrip project setup (for backend representation)
-
-You can create a JetBrains DataGrip project that gives your partner a rich IDE experience for exploring the schema:
-
-1. **Open DataGrip** and create a new project (`File → New Project`). Name it `sql-chat-app`.
-2. **Add a data source:**
-   - Click `+` in the Database tool window → `Data Source → PostgreSQL`.
-   - Point it at the `chatapp` database (or any PostgreSQL instance where you ran `schema.sql`).
-   - Test the connection.
-3. **Attach the SQL files:**
-   - Drag-and-drop (or `File → Open`) the `backend/` folder into the project Files panel.
-   - DataGrip will syntax-highlight and resolve all table/column references.
-4. **Create a run configuration** (optional):
-   - Right-click `schema.sql` → `Run` to execute DDL directly.
-   - Do the same for `seed.sql` and `queries.sql`.
-5. **Export the project** for your partner:
-   - The project lives in `~/DataGripProjects/sql-chat-app/` (or wherever you chose).
-   - Zip that folder and share it — your partner opens it via `File → Open`.
-   - The `.idea/` directory inside contains all DataGrip project settings.
-
-> **Tip:** If you want the DataGrip project *inside* this repo, create it at `backend/.idea/` by opening the `backend/` folder as the DataGrip project root. Then commit the `.idea/dataSources.xml` and `.idea/sqldialects.xml` files (exclude `dataSources.local.xml` which contains credentials).
-
----
-
 ## UI design
 
-Both the web and iOS clients share the same visual language:
-
-- **Dark theme** — deep navy background with accent blue (#4361EE)
-- **Sidebar / list** on the left showing chats with avatar initials, last message preview, and timestamp
-- **Chat panel** on the right with grouped message bubbles
-- **Blue outgoing bubbles** (bottom-right radius flattened) and **dark incoming bubbles** (bottom-left radius flattened)
-- Emoji reactions shown as chips below messages
-- System messages centered and muted
+Web and iOS share the same visual language: **dark** navy background with accent blue (**#4361EE**), a **sidebar or list** for conversations (avatars, last message, time), and a **detail** pane with grouped bubbles—**blue outgoing** (flattened bottom-right corner) and **dark incoming** (flattened bottom-left), reaction chips, and **muted centered** system messages.
 
 ---
 
-## License
+## DataGrip project setup
 
-MIT
+Use JetBrains DataGrip against a database where you applied `backend/schema.sql`:
+
+1. **New project** → name e.g. `sql-chat-app`.
+2. **Add data source** → PostgreSQL → connect to `chatapp` (or your instance).
+3. **Attach** the `backend/` folder for navigation and SQL assistance.
+4. Optional: run `schema.sql`, `seed.sql`, and `queries.sql` from the editor.
+5. To share: zip the DataGrip project folder, or keep `.idea` under `backend/` (commit shared settings; exclude credential-bearing `dataSources.local.xml`).
+
+---
+
+## Contributors
+
+Primary authors:
+
+- **Yaroslav Trach**
+- **Ryan Soroka**
+
+---
+
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-6e7681?style=flat-square" alt="MIT License" /></a>
+</p>
+
+<p align="center">
+  <sub><span style="color:#6e7681;">Licensed under the MIT License. This repository is provided for learning and reference. Submitting this work as your own, or otherwise misrepresenting authorship, constitutes <strong>academic dishonesty</strong> and is not acceptable use of this material.</span></sub>
+</p>
