@@ -2,9 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        ChatListView()
-            .preferredColorScheme(.dark)
-            .tint(Color(red: 0.26, green: 0.38, blue: 0.93))
+        TabView {
+            Tab("Contacts", systemImage: "person.crop.circle.fill") {
+                ContactsTab()
+            }
+
+            Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
+                ChatsTab()
+            }
+
+            Tab(role: .search) {
+                SearchView()
+            }
+        }
+        .preferredColorScheme(.dark)
+        .tint(.blue)
     }
 }
 

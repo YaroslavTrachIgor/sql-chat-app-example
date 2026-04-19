@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct ChatDetailView: View {
@@ -5,45 +6,64 @@ struct ChatDetailView: View {
     let currentUserId: Int64
     var onSend: () -> Void = {}
 
-    @State private var messages: [Message] = []
-    @State private var chatName: String = ""
-    @State private var memberCount: Int = 0
-    @State private var draft: String = ""
+    @State private var viewModel: ChatDetailViewModel
+
+    init(chatId: Int64, currentUserId: Int64, onSend: @escaping () -> Void = {}) {
+        self.chatId = chatId
+        self.currentUserId = currentUserId
+        self.onSend = onSend
+        _viewModel = State(wrappedValue: ChatDetailViewModel(chatId: chatId, currentUserId: currentUserId, onSend: onSend))
+    }
 
     var body: some View {
+        @Bindable var vm = viewModel
         VStack(spacing: 0) {
             messageList
-            composeBar
+            HStack(spacing: 10) {
+                TextField("Message", text: $vm.draft)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(Capsule())
+                    .onSubmit { viewModel.sendDraft() }
+
+                Button(action: { viewModel.sendDraft() }) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                }
+                .disabled(vm.draft.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.systemGroupedBackground))
         }
-        .navigationTitle(chatName)
+        .navigationTitle(vm.chatName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { toolbar }
-        .onAppear { loadData() }
-        .onChange(of: chatId) { loadData() }
-    }
-
-    // MARK: - Header toolbar
-
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            VStack(spacing: 1) {
-                Text(chatName)
-                    .font(.system(size: 17, weight: .semibold))
-                Text(memberCount > 2 ? "\(memberCount) members" : "Direct message")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(vm.chatName)
+                        .font(.headline)
+                    Text(vm.memberCount > 2 ? "\(vm.memberCount) members" : "Direct message")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        .onAppear {
+            viewModel.apply(chatId: chatId)
+        }
+        .onChange(of: chatId) { _, newId in
+            viewModel.apply(chatId: newId)
+        }
     }
-
-    // MARK: - Messages
 
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(messages) { msg in
+                    ForEach(viewModel.messages) { msg in
                         messageView(msg)
                             .id(msg.id)
                     }
@@ -51,8 +71,8 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            .onChange(of: messages.count) {
-                if let last = messages.last {
+            .onChange(of: viewModel.messages.count) {
+                if let last = viewModel.messages.last {
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
@@ -79,7 +99,7 @@ struct ChatDetailView: View {
             return msg.eventType ?? "system event"
         }()
         return Text(text)
-            .font(.system(size: 13))
+            .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
@@ -90,8 +110,8 @@ struct ChatDetailView: View {
         return VStack(alignment: mine ? .trailing : .leading, spacing: 2) {
             if !mine {
                 Text(msg.senderName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.blue)
                     .padding(.leading, 4)
             }
 
@@ -103,21 +123,22 @@ struct ChatDetailView: View {
                             Image(systemName: "paperclip")
                             Text(msg.mediaKind ?? "file")
                         }
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                     } else {
                         Text(msg.body ?? "")
-                            .font(.system(size: 15))
+                            .font(.body)
+                            .foregroundStyle(mine ? .white : .primary)
                     }
                     Text(msg.displayTime)
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(mine ? 0.5 : 0.35))
+                        .foregroundStyle(mine ? .white.opacity(0.6) : .secondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(mine
-                    ? Color.accentColor
-                    : Color(red: 0.15, green: 0.15, blue: 0.27))
+                    ? Color.blue
+                    : Color(.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 if !mine { Spacer(minLength: 60) }
             }
@@ -126,73 +147,15 @@ struct ChatDetailView: View {
                 HStack(spacing: 4) {
                     ForEach(msg.reactions) { r in
                         Text("\(r.emoji) \(r.count)")
-                            .font(.system(size: 13))
+                            .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.15))
+                            .background(Color(.tertiarySystemFill))
                             .clipShape(Capsule())
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
-    }
-
-    // MARK: - Compose
-
-    private var composeBar: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message…", text: $draft)
-                .textFieldStyle(.plain)
-                .padding(12)
-                .background(Color(red: 0.1, green: 0.1, blue: 0.24))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.gray.opacity(0.25), lineWidth: 1))
-                .onSubmit { send() }
-
-            Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    // MARK: - Actions
-
-    private func send() {
-        let text = draft.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        ChatDatabase.shared.sendTextMessage(chatId: chatId, senderId: currentUserId, body: text)
-        draft = ""
-        loadData()
-        onSend()
-    }
-
-    private func loadData() {
-        chatName = ChatDatabase.shared.chatName(chatId: chatId, currentUserId: currentUserId)
-        memberCount = ChatDatabase.shared.participantCount(chatId: chatId)
-        let rows = ChatDatabase.shared.fetchMessages(chatId: chatId)
-        messages = rows.map { r in
-            var msg = Message(
-                id: r.messageId,
-                senderId: r.senderId,
-                senderName: r.senderName,
-                mtype: r.mtype,
-                sentAt: r.sentAt,
-                body: r.body,
-                eventType: r.eventType,
-                payload: r.payload,
-                mediaUrl: r.mediaUrl,
-                mediaKind: r.mediaKind
-            )
-            msg.reactions = ChatDatabase.shared.fetchReactions(messageId: r.messageId).map {
-                Reaction(emoji: $0.emoji, count: $0.count)
-            }
-            return msg
-        }
     }
 }

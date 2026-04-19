@@ -79,6 +79,17 @@ The page loads **sql.js** (SQLite compiled to WebAssembly), creates all tables i
 
 > **Note:** Add `schema.sql` to the Xcode target's **Copy Bundle Resources** build phase if it is not already included.
 
+**Unit tests from the terminal** (pick a simulator that exists on your Mac; iPhone 17 is the default assumed here for Xcode 26 / iOS 26 runtimes):
+
+```bash
+cd ios
+xcodebuild test -scheme sql-chat-app-example \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:sql-chat-app-exampleTests
+```
+
+To see exact device strings: `xcrun simctl list devices available`.
+
 ### Backend (PostgreSQL)
 
 ```bash
