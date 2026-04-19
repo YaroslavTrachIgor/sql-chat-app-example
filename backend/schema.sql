@@ -1,17 +1,30 @@
 -- ============================================================
--- Chat Application – PostgreSQL Schema
+-- Chat Application - PostgreSQL Schema
 -- ============================================================
 -- Requires: PostgreSQL 14+ with citext extension
+--
+-- This schema is designed as a relational graph:
+-- 1) app_user is the root identity table.
+-- 2) chat + chat_participant model conversation membership.
+-- 3) message is the core content table.
+-- 4) specialized tables (text_message, media_message, etc.) extend message/media rows.
+-- 5) engagement tables (reaction, read_receipt, message_status) reference message and app_user.
+--
+-- Foreign keys intentionally enforce creation order:
+-- parents must exist before children can be inserted.
 -- ============================================================
 
 BEGIN;
 
+-- CITEXT gives case-insensitive uniqueness for username/email.
+-- Effect: "Alice" and "alice" are treated as duplicates for uniqueness checks.
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- ------------------------------------------------------------
--- Enum types
+-- Enum types (domain constraints)
 -- ------------------------------------------------------------
-
+-- These enums constrain valid values and make intent explicit.
+-- They are reused across multiple tables.
 CREATE TYPE chat_type       AS ENUM ('direct', 'group', 'channel');
 CREATE TYPE message_type    AS ENUM ('text', 'media', 'system');
 CREATE TYPE media_kind      AS ENUM ('image', 'video', 'audio', 'file');
@@ -23,7 +36,10 @@ CREATE TYPE call_status     AS ENUM ('ringing', 'active', 'ended', 'missed', 'de
 -- ------------------------------------------------------------
 -- Users & profiles
 -- ------------------------------------------------------------
-
+-- app_user is the foundational entity:
+-- nearly every other table references app_user(user_id).
+-- Deleting a user row will fail if dependent rows still exist
+-- (because FK actions are not set to CASCADE in this schema).
 CREATE TABLE app_user (
     user_id      BIGSERIAL       PRIMARY KEY,
     username     CITEXT          NOT NULL UNIQUE,
@@ -41,7 +57,10 @@ CREATE TABLE app_user (
 -- ------------------------------------------------------------
 -- Contacts
 -- ------------------------------------------------------------
-
+-- contact is a directed relationship:
+-- owner_id -> the user who owns the contact list
+-- contact_id -> the person appearing in that list
+-- Effect on reads: contact joins to app_user to render contact cards.
 CREATE TABLE contact (
     owner_id    BIGINT      NOT NULL REFERENCES app_user (user_id),
     contact_id  BIGINT      NOT NULL REFERENCES app_user (user_id),
@@ -52,6 +71,9 @@ CREATE TABLE contact (
     CHECK (owner_id <> contact_id)
 );
 
+-- blocked_user is also directed:
+-- user_id blocks blocked_user_id.
+-- Effect: business logic should filter blocked users from chat/contact surfaces.
 CREATE TABLE blocked_user (
     user_id         BIGINT      NOT NULL REFERENCES app_user (user_id),
     blocked_user_id BIGINT      NOT NULL REFERENCES app_user (user_id),
@@ -63,7 +85,9 @@ CREATE TABLE blocked_user (
 -- ------------------------------------------------------------
 -- Chats
 -- ------------------------------------------------------------
-
+-- chat is the conversation container.
+-- created_by references app_user and records who started the chat.
+-- For direct chats, title is often NULL and computed from participants at query time.
 CREATE TABLE chat (
     chat_id    BIGSERIAL    PRIMARY KEY,
     ctype      chat_type    NOT NULL,
@@ -72,6 +96,11 @@ CREATE TABLE chat (
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- chat_participant is a many-to-many bridge between chat and app_user.
+-- Each row means "this user belongs to this chat".
+-- Downstream effects:
+-- - message visibility is typically scoped to chat participants.
+-- - unread counts use this table as the per-user chat membership source.
 CREATE TABLE chat_participant (
     chat_id   BIGINT       NOT NULL REFERENCES chat (chat_id),
     user_id   BIGINT       NOT NULL REFERENCES app_user (user_id),
@@ -85,7 +114,14 @@ CREATE TABLE chat_participant (
 -- ------------------------------------------------------------
 -- Messages
 -- ------------------------------------------------------------
-
+-- message is the canonical message header row.
+-- It references:
+-- - chat(chat_id): which conversation the message belongs to
+-- - app_user(user_id): who sent it
+-- - message(message_id): optional self-reference for reply threading
+-- Effects:
+-- - deleting a chat/user/message requires handling dependent children first.
+-- - child content tables rely on this row existing first.
 CREATE TABLE message (
     message_id   BIGSERIAL     PRIMARY KEY,
     chat_id      BIGINT        NOT NULL REFERENCES chat (chat_id),
@@ -98,11 +134,15 @@ CREATE TABLE message (
     edited_at    TIMESTAMPTZ
 );
 
+-- text_message extends message 1:1 for textual payloads.
+-- FK + PK on message_id guarantees one text payload per message max.
 CREATE TABLE text_message (
     message_id BIGINT PRIMARY KEY REFERENCES message (message_id),
     body       TEXT   NOT NULL
 );
 
+-- system_message extends message 1:1 for event/system payloads.
+-- payload can hold structured event metadata as JSONB.
 CREATE TABLE system_message (
     message_id BIGINT PRIMARY KEY REFERENCES message (message_id),
     event_type TEXT   NOT NULL,
@@ -112,7 +152,9 @@ CREATE TABLE system_message (
 -- ------------------------------------------------------------
 -- Message delivery tracking
 -- ------------------------------------------------------------
-
+-- message_status tracks per-user delivery state for each message.
+-- Composite PK prevents duplicate status rows per (message,user).
+-- Effect: updates here drive "sent/delivered/read" indicators in clients.
 CREATE TABLE message_status (
     message_id BIGINT          NOT NULL REFERENCES message (message_id),
     user_id    BIGINT          NOT NULL REFERENCES app_user (user_id),
@@ -124,7 +166,8 @@ CREATE TABLE message_status (
 -- ------------------------------------------------------------
 -- Media
 -- ------------------------------------------------------------
-
+-- media stores shared file metadata independent of any specific message.
+-- message linkage happens through media_message.
 CREATE TABLE media (
     media_id    BIGSERIAL    PRIMARY KEY,
     kind        media_kind   NOT NULL,
@@ -134,11 +177,15 @@ CREATE TABLE media (
     uploaded_at TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- media_message is a 1:1 extension from message -> media.
+-- message_id as PK means one media attachment record per message in this model.
 CREATE TABLE media_message (
     message_id BIGINT PRIMARY KEY REFERENCES message (message_id),
     media_id   BIGINT NOT NULL REFERENCES media (media_id)
 );
 
+-- The following tables are type-specific media extensions.
+-- Each is 1:1 with media(media_id), and should align with media.kind.
 CREATE TABLE image_media (
     media_id BIGINT PRIMARY KEY REFERENCES media (media_id),
     width    INT,
@@ -165,7 +212,9 @@ CREATE TABLE file_media (
 -- ------------------------------------------------------------
 -- Reactions & read receipts
 -- ------------------------------------------------------------
-
+-- reaction: many users can react to many messages with many emoji values.
+-- PK(message_id, user_id, emoji) allows multiple emojis per user/message pair
+-- but prevents duplicate same-emoji reactions by the same user.
 CREATE TABLE reaction (
     message_id BIGINT      NOT NULL REFERENCES message (message_id),
     user_id    BIGINT      NOT NULL REFERENCES app_user (user_id),
@@ -174,6 +223,8 @@ CREATE TABLE reaction (
     PRIMARY KEY (message_id, user_id, emoji)
 );
 
+-- read_receipt: at most one "read" marker per (message,user).
+-- Effect: unread counters are usually computed by anti-joining this table.
 CREATE TABLE read_receipt (
     message_id BIGINT      NOT NULL REFERENCES message (message_id),
     user_id    BIGINT      NOT NULL REFERENCES app_user (user_id),
@@ -184,7 +235,8 @@ CREATE TABLE read_receipt (
 -- ------------------------------------------------------------
 -- Typing indicators (ephemeral, cleaned up periodically)
 -- ------------------------------------------------------------
-
+-- typing_indicator is intentionally lightweight and transient.
+-- One row per (chat,user) means "currently typing" state.
 CREATE TABLE typing_indicator (
     chat_id    BIGINT      NOT NULL REFERENCES chat (chat_id),
     user_id    BIGINT      NOT NULL REFERENCES app_user (user_id),
@@ -195,7 +247,8 @@ CREATE TABLE typing_indicator (
 -- ------------------------------------------------------------
 -- Calls
 -- ------------------------------------------------------------
-
+-- call references the chat where the call occurred and who started it.
+-- call_participant tracks who joined that call and for how long.
 CREATE TABLE call (
     call_id    BIGSERIAL   PRIMARY KEY,
     chat_id    BIGINT      NOT NULL REFERENCES chat (chat_id),
@@ -217,7 +270,11 @@ CREATE TABLE call_participant (
 -- ------------------------------------------------------------
 -- Indexes
 -- ------------------------------------------------------------
-
+-- These indexes support common access paths and relationship traversals:
+-- - by chat timeline
+-- - by sender
+-- - by FK columns used in joins
+-- - by partial conditions where relevant
 CREATE INDEX idx_message_chat_sent    ON message (chat_id, sent_at DESC);
 CREATE INDEX idx_message_sender       ON message (sender_id);
 CREATE INDEX idx_message_reply        ON message (reply_to_id) WHERE reply_to_id IS NOT NULL;
