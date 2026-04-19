@@ -125,14 +125,6 @@ psql chatapp -f backend/seed.sql
 psql chatapp -f backend/queries.sql
 ```
 
----
-
-## UI design
-
-Web and iOS share the same visual language: **dark** navy background with accent blue (**#4361EE**), a **sidebar or list** for conversations (avatars, last message, time), and a **detail** pane with grouped bubbles—**blue outgoing** (flattened bottom-right corner) and **dark incoming** (flattened bottom-left), reaction chips, and **muted centered** system messages.
-
----
-
 ## DataGrip project setup
 
 Use JetBrains DataGrip against a database where you applied `backend/schema.sql`:
