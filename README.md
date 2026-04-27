@@ -1,6 +1,6 @@
 <div align="center">
 
-# SQL Chat App Example
+# Chatting App SQL Schema Project (Activity 5)
 
 **A relational chat schema with matching Web and iOS clients, plus a PostgreSQL reference implementation.**
 
@@ -18,7 +18,7 @@
 
 ## Overview
 
-This repository models a full-featured chat domain in SQL and ships **three surfaces** that all speak the same relational model: a **browser client** (SQLite in-memory via sql.js), an **iOS app** (SwiftUI + SQLite), and a **backend** folder with PostgreSQL-oriented DDL, seeds, and example queries. PostgreSQL and SQLite differ only in dialect details (enums vs `CHECK` constraints, and the like).
+This repository models a full-featured chat domain in SQL and ships **three surfaces** that all speak the same relational model: a **browser client** (SQLite in-memory via sql.js) for testing quries and previewing database tables, an **iOS app** (SwiftUI + SQLite), and a **backend** folder with PostgreSQL-oriented DDL, seeds, and example queries. PostgreSQL and SQLite differ only in dialect details (enums vs `CHECK` constraints, and the like).
 
 **Clients include** chat threads, messages (text / media / system), reactions, read receipts, **contacts** with search and add-contact flows (Web and iOS), and a shared visual language (dark theme, list + detail layout, bubble styling).
 
